@@ -1,0 +1,6 @@
+streamlit
+mysql-connector-python
+pandas
+numpy
+
+pip install -r requirements.txt

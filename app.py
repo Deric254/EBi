@@ -9,156 +9,225 @@ def get_connection():
 
 conn = get_connection()
 
-# Page config
-st.set_page_config(page_title="EBI", layout="wide")
+# Page configuration
+st.set_page_config(page_title="EXES Base Intelligence", layout="wide")
 
 # Inject custom styles
 st.markdown("""
     <style>
         :root {
-            --brand-green: #49A078;
-            --brand-green-dark: #3e8865;
-            --brand-yellow: #facc15;
-            --brand-blue: #2563EB;
-            --brand-blue-dark: #1e40af;
-            --brand-bg-light: #e8f6ed;
-            --brand-bg-gradient-from: #f0fdfa;
-            --brand-bg-gradient-to: #d9f99d;
-            --brand-footer-bg: #DFF3EA;
-            --brand-footer-border: #49A078;
-            --brand-footer-text: #333333;
-            --brand-white: #ffffff;
-            --brand-black: #111111;
+            --brand-green: #49A078; /* Primary green */
+            --brand-green-dark: #3e8865; /* Darker green for hover */
+            --brand-yellow: #facc15; /* Accent yellow */
+            --brand-blue: #2563EB; /* Accent blue */
+            --brand-blue-dark: #1e40af; /* Darker blue */
+            --brand-bg-light: #e8f6ed; /* Light background */
+            --brand-bg-gradient-from: #f0fdfa; /* Gradient start */
+            --brand-bg-gradient-to: #d9f99d; /* Gradient end */
+            --brand-footer-bg: #49A078; /* Updated to match header */
+            --brand-footer-border: #49A078; /* Footer border (unchanged) */
+            --brand-white: #ffffff; /* White */
+            --brand-black: #111111; /* Black for text */
+            --footer-height: 60px; /* Fixed footer height */
         }
+
+        /* Ensure full height layout */
         body, .stApp {
             background-color: var(--brand-bg-light) !important;
             color: var(--brand-black) !important;
-            font-family: Arial, sans-serif;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 16px;
+            line-height: 1.5;
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
         }
+
+        /* Main content container */
         .block-container {
             background: linear-gradient(135deg, var(--brand-bg-gradient-from), var(--brand-bg-gradient-to)) !important;
             color: var(--brand-black) !important;
-            border-radius: 8px;
-            padding: 2rem;
-            max-width: 900px;
-            margin: 1rem auto;
+            border-radius: 12px;
+            padding: 2.5rem;
+            max-width: 1000px;
+            margin: 1.5rem auto;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            flex-grow: 1;
+            padding-bottom: 80px; /* Adjusted for non-fixed footer */
         }
+
+        /* Sidebar: Green background with black text */
         .stSidebar, .sidebar .sidebar-content, .stSidebarContent {
             background-color: var(--brand-green) !important;
             color: var(--brand-black) !important;
+            padding: 1.5rem;
+            z-index: 1;
         }
-        /* Make all sidebar text black */
-        .stSidebar .stRadio label, .sidebar .sidebar-content .stRadio label,
-        .stSidebar .stMarkdown, .sidebar .sidebar-content .stMarkdown,
-        .stSidebar .stText, .sidebar .sidebar-content .stText,
-        .stSidebar .stTitle, .sidebar .sidebar-content .stTitle,
-        .stSidebar .stHeader, .sidebar .sidebar-content .stHeader {
+        .stSidebar .stRadio label, .stSidebar .stMarkdown, .stSidebar .stText,
+        .stSidebar .stTitle, .stSidebar .stHeader {
             color: var(--brand-black) !important;
+            font-weight: bold;
         }
-        .stSidebar .stImage, .sidebar .sidebar-content .stImage {
-            /* images remain unchanged */
+        .stSidebar .stRadio label {
+            font-size: 1.1rem;
         }
+
+        /* Header: Unchanged */
         .header-container {
-            display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            margin-bottom: 1.5rem;
             background-color: var(--brand-green) !important;
-            color: var(--brand-white) !important;
-            padding: 1rem;
-            border-radius: 8px;
+            color: var(--brand-black) !important;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
         .header-container img {
-            border-radius: 50%; width: 50px; height: 50px;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
         }
         .header-title {
-            font-size: 1.5rem; font-weight: 600; color: var(--brand-yellow) !important;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--brand-black) !important;
         }
         .header-subtitle {
-            font-size: 0.9rem; color: var(--brand-white) !important; margin-top: -0.5rem;
+            font-size: 1rem;
+            color: var(--brand-black) !important;
+            font-weight: normal;
         }
+
+        /* Section accents */
         .section-accent {
             background-color: var(--brand-yellow) !important;
             color: var(--brand-black) !important;
-            padding: 1rem;
-            margin: 1rem 0;
-            border-radius: 6px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 8px;
         }
-        /* All Streamlit buttons */
+
+        /* Buttons */
         .stButton button, .stDownloadButton button {
             background-color: var(--brand-green) !important;
             color: var(--brand-black) !important;
-            border-radius: 5px !important;
-            padding: 0.4rem 1rem !important;
+            border-radius: 8px !important;
+            padding: 0.6rem 1.2rem !important;
             border: none !important;
             font-weight: bold !important;
-            transition: background 0.2s, color 0.2s;
+            font-size: 1rem;
+            transition: background 0.3s ease, color 0.3s ease;
         }
         .stButton button:hover, .stDownloadButton button:hover {
             background-color: var(--brand-green-dark) !important;
-            color: var(--brand-yellow) !important;
+            color: var(--brand-black) !important;
         }
-        /* Export buttons (CSV, JSON, etc.) */
         .stDownloadButton button {
             background-color: var(--brand-yellow) !important;
             color: var(--brand-black) !important;
-            border-radius: 5px !important;
-            font-weight: bold !important;
             border: 1px solid var(--brand-green) !important;
         }
         .stDownloadButton button:hover {
             background-color: var(--brand-green) !important;
-            color: var(--brand-white) !important;
+            color: var(--brand-black) !important;
         }
+
+        /* Expander headers */
         .streamlit-expanderHeader {
             font-weight: bold;
-            color: var(--brand-green) !important;
+            color: var(--brand-black) !important;
+            font-size: 1.1rem;
         }
+
         /* Input fields, text areas, select boxes */
-        input, textarea, select, .stTextInput>div>input, .stTextArea>div>textarea, .stSelectbox>div>div>div {
+        input, textarea, select, .stTextInput>div>input, .stTextArea>div>textarea, 
+        .stSelectbox>div>div>div, .stTextInput input, .stTextArea textarea, 
+        .stSelectbox div[role="textbox"], .stSelectbox div[data-baseweb="select"] {
             background-color: var(--brand-white) !important;
             color: var(--brand-black) !important;
-            border-radius: 5px !important;
+            border-radius: 8px !important;
             border: 1px solid var(--brand-green) !important;
             font-size: 1rem !important;
+            padding: 0.6rem !important;
         }
-        .stTextInput input, .stTextArea textarea, .stSelectbox div[role="textbox"], .stSelectbox div[data-baseweb="select"] {
-            background-color: var(--brand-white) !important;
+
+        /* Dropdown arrows and icons */
+        .stSelectbox [data-baseweb="select"] > div::after {
+            border-color: var(--brand-black) transparent transparent transparent !important;
+        }
+        .stSelectbox [data-baseweb="select"] svg, .stSelectbox [data-baseweb="select"] i {
+            fill: var(--brand-black) !important;
             color: var(--brand-black) !important;
-            border-radius: 5px !important;
-            border: 1px solid var(--brand-green) !important;
         }
-        /* Placeholder text color */
+
+        /* Placeholder text */
         ::placeholder {
-            color: var(--brand-green-dark) !important;
+            color: #1e4d36 !important;
             opacity: 1 !important;
+            font-weight: normal;
         }
-        /* Dataframe text color and background */
+
+        /* Dataframes and tables */
         .stDataFrame, .stTable {
             color: var(--brand-black) !important;
             background-color: var(--brand-white) !important;
+            border-radius: 8px;
         }
+
         /* Markdown and labels */
-        .markdown-text-container, .stMarkdown, .stLabel, .stRadio label, .stCheckbox label, .stSelectbox label, .stTextInput label, .stTextArea label {
+        .markdown-text-container, .stMarkdown, .stLabel, .stRadio label, 
+        .stCheckbox label, .stSelectbox label, .stTextInput label, .stTextArea label {
             color: var(--brand-black) !important;
+            font-weight: bold;
+            font-size: 1rem;
         }
-        /* Footer and footer text */
+
+        /* Footer: Matches header's colors and positioning */
         footer, .footer-text {
-            background-color: var(--brand-footer-bg) !important;
-            color: var(--brand-footer-text) !important;
-            text-align: center;
-            padding: 1rem;
-            margin-top: 2rem;
-            border-top: 2px solid var(--brand-footer-border);
-            border-radius: 0 0 8px 8px;
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            margin-bottom: 1.5rem;
+            background-color: var(--brand-green) !important;
+            color: var(--brand-black) !important;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
-        .footer-text {
-            position: fixed;
-            bottom: 10px;
-            left: 10px;
-            font-size: 12px;
-            background-color: var(--brand-footer-bg) !important;
-            color: var(--brand-footer-text) !important;
-            padding: 0.3rem 0.8rem;
-            border-radius: 4px;
-            border: 1px solid var(--brand-footer-border);
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .block-container {
+                padding: 1.5rem;
+                padding-bottom: 80px;
+            }
+            .header-container, footer, .footer-text {
+                padding: 1rem;
+            }
+            .header-title {
+                font-size: 1.4rem;
+            }
+            .header-subtitle {
+                font-size: 0.9rem;
+            }
+            .stSidebar {
+                padding: 1rem;
+            }
+            .stSidebar .stRadio label {
+                font-size: 1rem;
+            }
+        }
+        @media (min-width: 601px) and (max-width: 900px) {
+            .block-container {
+                padding: 2rem;
+                padding-bottom: 80px;
+            }
+            .header-title {
+                font-size: 1.6rem;
+            }
         }
     </style>
 """, unsafe_allow_html=True)
@@ -167,50 +236,55 @@ st.markdown("""
 if "page" not in st.session_state:
     st.session_state["page"] = "Welcome"
 
+# Navigation function
 def navigate_to(target):
     st.session_state["page"] = target
 
 # Sidebar navigation
 st.sidebar.image("assets/logo.png", width=60)
-st.sidebar.markdown("### 🧠 EBI")
-st.sidebar.markdown("_We analyze, you decide_")
+st.sidebar.markdown("### 🧠 EXES Base Intelligence")
+st.sidebar.markdown("_We analyze, you decide_", unsafe_allow_html=True)
 selected = st.sidebar.radio("📂 Modules", [
-    "Welcome", "Navigator", "Preview & Audit", "Cleaner & Query", "Analyst", "Reset", "Insert CSV", "Generate Data"
-], index=["Welcome", "Navigator", "Preview & Audit", "Cleaner & Query", "Analyst", "Reset", "Insert CSV", "Generate Data"].index(st.session_state["page"]))
+    "Welcome", "Navigator", "Preview & Audit", "Cleaner & Query", "Analyst", 
+    "Reset", "Insert CSV", "Generate Data"
+], index=["Welcome", "Navigator", "Preview & Audit", "Cleaner & Query", "Analyst", 
+          "Reset", "Insert CSV", "Generate Data"].index(st.session_state["page"]))
 
 if selected != st.session_state["page"]:
     navigate_to(selected)
 
 # Header
-col1, col2 = st.columns([1, 5])  # adjust ratio as needed
-
+col1, col2 = st.columns([1, 5])
 with col1:
     st.image("assets/deric.png", width=60)
-
 with col2:
     st.markdown("""
         <div class="header-title">
-            <a href="https://deric-exes-analytics.netlify.app" target="_blank" style="text-decoration:none; color:#2e7d32;">
-                EXes Base Inteligence
+            <a href="https://deric-exes-analytics.netlify.app" target="_blank" style="text-decoration:none; color:#111111;">
+                EXES Base Intelligence
             </a>
         </div>
         <div class="header-subtitle">Deric — CEO & Founder of EXES</div>
     """, unsafe_allow_html=True)
 
-
 # Route to selected module
 page = st.session_state["page"]
-if page == "Welcome": welcome.show()
-elif page == "Navigator": navigator.show(conn)
-elif page == "Preview & Audit": preview_audit.show(conn)
-elif page == "Cleaner & Query": cleaner_query.show(conn)
-elif page == "Analyst": analyst.show(conn)
-elif page == "Reset": reset.show()
-elif page == "Insert CSV": insertcsv.show(conn)
-elif page == "Generate Data": gendata.show(conn)
+if page == "Welcome":
+    welcome.show()
+elif page == "Navigator":
+    navigator.show(conn)
+elif page == "Preview & Audit":
+    preview_audit.show(conn)
+elif page == "Cleaner & Query":
+    cleaner_query.show(conn)
+elif page == "Analyst":
+    analyst.show(conn)
+elif page == "Reset":
+    reset.show()
+elif page == "Insert CSV":
+    insertcsv.show(conn)
+elif page == "Generate Data":
+    gendata.show(conn)
 
 # Footer
-st.markdown("<div class='footer-text'>© 2025 EXES Intelligence — We analyze, you decide</div>", unsafe_allow_html=True)
-st.markdown("<div class='footer-text'>© 2025 EXES Intelligence — We analyze, you decide</div>", unsafe_allow_html=True)
-st.markdown("<div class='footer-text'>© 2025 EXES Intelligence — We analyze, you decide</div>", unsafe_allow_html=True)
-st.markdown("<div class='footer-text'>© 2025 EXES Intelligence — We analyze, you decide</div>", unsafe_allow_html=True)
+#st.markdown("<div class='footer-text'>© 2025 EXES Intelligence — We analyze, you decide</div>", unsafe_allow_html=True)

@@ -21,4 +21,4 @@ def show():
    # if st.button("Welcome →"):
      #   navigate_to("Welcome")
 
-    st.markdown("Visit [EXES Analytics](https://deric-exes-analytics.netlify.app) to explore more tools.")
+   # st.markdown("Visit [EXES Analytics](https://deric-exes-analytics.netlify.app) to explore more tools.")

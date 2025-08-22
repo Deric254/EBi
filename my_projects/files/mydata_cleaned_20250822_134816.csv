@@ -1,4 +1,4 @@
-item id,item name,item category,item cost,item delivery
+item_id,item_name,item_category,item_cost,item_delivery
 1,Stephanie Jones,D,22.52,1
 2,Sabrina Martin,D,28.77,1
 3,Allen Duncan,A,29.32,0

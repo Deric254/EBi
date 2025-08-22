@@ -32,7 +32,7 @@ def show(conn):
                     st.session_state["selected_table"] = tables[0]
                 else:
                     st.session_state.pop("selected_table", None)
-                st.experimental_rerun()
+                st.rerun()  # Use st.rerun() for immediate rerun, not st.experimental_rerun()
             except Exception as e:
                 st.error(f"Error deleting table: {e}")
     with col2:
@@ -117,6 +117,15 @@ def show(conn):
 
         st.write("✅ Cleaned Preview", cleaned_df.head())
         st.download_button("📥 Export Cleaned CSV", cleaned_df.to_csv(index=False), f"{table}_cleaned.csv", "text/csv")
+        # Save cleaned CSV to my_projects/files
+        import os
+        from datetime import datetime
+        files_dir = os.path.join("my_projects", "files")
+        os.makedirs(files_dir, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        cleaned_path = os.path.join(files_dir, f"{table}_cleaned_{timestamp}.csv")
+        cleaned_df.to_csv(cleaned_path, index=False)
+        st.success(f"Cleaned CSV saved to My Projects.")
 
         # --- Data Modification Section ---
         with st.expander("✏️ Update Values", expanded=False):

@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 from utils import navigate_to
 from modules import visualizer
+import os
+from datetime import datetime
 
 def show(conn):
     st.subheader("🧠 Analyst Playground")
@@ -21,12 +23,10 @@ def show(conn):
         cols = [desc[0] for desc in cursor.description]
         df = pd.DataFrame(rows, columns=cols)
 
-        # Store results for visualization
         result_dfs = {"Full Table": df}
 
         # --- SELECT columns ---
         with st.expander("🔎 Select Columns", expanded=False):
-            st.markdown("Choose which columns to display from your table.")
             col1, col2 = st.columns([2, 2])
             with col1:
                 selected_cols = st.multiselect("Columns", cols, default=cols)
@@ -42,7 +42,6 @@ def show(conn):
 
         # --- FILTER rows ---
         with st.expander("🔍 Filter Rows (WHERE)", expanded=False):
-            st.markdown("Filter your data by column and value.")
             col1, col2 = st.columns([2, 2])
             with col1:
                 filter_col = st.selectbox("Column to filter", cols, key="filter_col")
@@ -155,61 +154,8 @@ def show(conn):
                 st.info("You need at least two tables to perform a join.")
             st.markdown("Tip: Use JOIN to combine related data from different tables.")
 
-        # --- UPDATE values ---
-        with st.expander("✏️ Update Values", expanded=False):
-            st.markdown("Update values in a column for matching rows.")
-            col1, col2 = st.columns([2, 2])
-            with col1:
-                update_col = st.selectbox("Column to update", cols, key="update_col")
-            with col2:
-                update_old = st.text_input("Old value (exact match)", key="update_old")
-                update_new = st.text_input("New value", key="update_new")
-            if st.button("Run UPDATE", key="run_update"):
-                try:
-                    cursor.execute(f"UPDATE '{table}' SET \"{update_col}\"=? WHERE \"{update_col}\"=?", (update_new, update_old))
-                    conn.commit()
-                    st.success(f"Updated `{update_col}` from '{update_old}' to '{update_new}'")
-                except Exception as e:
-                    st.error(f"Update error: {e}")
-            st.markdown("Tip: Use UPDATE to correct or change data.")
-
-        # --- DELETE rows ---
-        with st.expander("🗑️ Delete Rows", expanded=False):
-            st.markdown("Delete rows where a column matches a value.")
-            col1, col2 = st.columns([2, 2])
-            with col1:
-                delete_col = st.selectbox("Column to match for delete", cols, key="delete_col")
-            with col2:
-                delete_val = st.text_input("Value to delete (exact match)", key="delete_val")
-            if st.button("Run DELETE", key="run_delete"):
-                try:
-                    cursor.execute(f"DELETE FROM '{table}' WHERE \"{delete_col}\"=?", (delete_val,))
-                    conn.commit()
-                    st.success(f"Deleted rows where `{delete_col}` = '{delete_val}'")
-                except Exception as e:
-                    st.error(f"Delete error: {e}")
-            st.markdown("Tip: Use DELETE to remove unwanted data.")
-
-        # --- RENAME TABLE ---
-        with st.expander("🔤 Rename Table", expanded=False):
-            st.markdown("Rename your table to a new name.")
-            col1, col2 = st.columns([2, 2])
-            with col1:
-                new_table_name = st.text_input("New table name", value=table, key="rename_table")
-            with col2:
-                st.markdown("Tip: Use a descriptive name for your table.")
-            if st.button("Run RENAME", key="run_rename"):
-                try:
-                    cursor.execute(f"ALTER TABLE '{table}' RENAME TO '{new_table_name}'")
-                    conn.commit()
-                    st.success(f"Table renamed to '{new_table_name}'")
-                    st.session_state["selected_table"] = new_table_name
-                except Exception as e:
-                    st.error(f"Rename error: {e}")
-
         # --- CTE Example ---
         with st.expander("🧬 CTE (Common Table Expression)", expanded=False):
-            st.markdown("Write and run a CTE SQL query.")
             col1, col2 = st.columns([2, 2])
             with col1:
                 cte_query = st.text_area("CTE SQL", value=f"WITH temp AS (SELECT * FROM '{table}' LIMIT 10) SELECT * FROM temp", key="cte_query", height=100)
@@ -233,8 +179,14 @@ def show(conn):
 
         # --- Export full table ---
         with st.expander("📤 Export Table", expanded=False):
-            st.markdown("Download your full table as CSV.")
             st.download_button("📥 Export Full Table CSV", df.to_csv(index=False), f"{table}_full.csv", "text/csv")
+            # Save exported CSV to my_projects/files
+            files_dir = os.path.join("my_projects", "files")
+            os.makedirs(files_dir, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            full_path = os.path.join(files_dir, f"{table}_full_{timestamp}.csv")
+            df.to_csv(full_path, index=False)
+            st.success(f"Full table CSV saved to My Projects.")
 
         # --- Quick Stats ---
         with st.expander("📈 Quick Stats", expanded=False):
@@ -256,7 +208,6 @@ def show(conn):
             with col2:
                 y_col = st.selectbox("Y axis", viz_df.columns, key=f"viz_y_col_{selected_viz}")
 
-            # Only plot if columns are valid and not the same
             if x_col == y_col:
                 st.warning("X and Y axis must be different columns for visualization.")
             elif chart_type in ["Bar", "Line", "Scatter"]:
@@ -294,48 +245,53 @@ def show(conn):
             st.write("Top values for X axis:")
             st.write(viz_df[x_col].value_counts().head())
 
-    # --- Advanced SQL Query ---
-    with st.expander("🧠 Run Advanced SQL Query", expanded=False):
-        col1, col2 = st.columns([2, 2])
-        with col1:
-            query = st.text_area("Enter SQL query", height=100, value="", placeholder="Type your SQL query here...", key="advanced_sql")
-        with col2:
-            st.markdown("Tip: Write any valid SQL. Use LIMIT for safety.")
-        if st.button("Run Query", key="run_advanced_sql"):
-            try:
-                cursor.execute(query)
-                if cursor.description:
-                    rows = cursor.fetchall()
-                    cols = [desc[0] for desc in cursor.description]
-                    df = pd.DataFrame(rows, columns=cols)
-                    st.dataframe(df)
-                    st.download_button("📥 Export Results", df.to_csv(index=False), "query_results.csv", "text/csv")
-                else:
-                    conn.commit()
-                    st.success("Query executed successfully.")
-            except Exception as e:
-                st.error(f"Query error: {e}")
+        # --- Advanced SQL Query ---
+        with st.expander("🧠 Run Advanced SQL Query", expanded=False):
+            col1, col2 = st.columns([2, 2])
+            with col1:
+                query = st.text_area("Enter SQL query", height=100, value="", placeholder="Type your SQL query here...", key="advanced_sql")
+            with col2:
+                st.markdown("Tip: Write any valid SQL. Use LIMIT for safety.")
+            if st.button("Run Query", key="run_advanced_sql"):
+                try:
+                    cursor.execute(query)
+                    if cursor.description:
+                        rows = cursor.fetchall()
+                        cols = [desc[0] for desc in cursor.description]
+                        df = pd.DataFrame(rows, columns=cols)
+                        st.dataframe(df)
+                        st.download_button("📥 Export Results", df.to_csv(index=False), "query_results.csv", "text/csv")
+                        # Save query results to my_projects/files
+                        files_dir = os.path.join("my_projects", "files")
+                        os.makedirs(files_dir, exist_ok=True)
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        query_path = os.path.join(files_dir, f"query_results_{timestamp}.csv")
+                        df.to_csv(query_path, index=False)
+                        st.success(f"Query results saved to My Projects.")
+                    else:
+                        conn.commit()
+                        st.success("Query executed successfully.")
+                except Exception as e:
+                    st.error(f"Query error: {e}")
 
-    # --- Analyst Tips ---
-    with st.expander("📘 Analyst Tips", expanded=False):
-        st.markdown("""
-        - Use **Select Columns** to choose what you see  
-        - Use **Filter Rows** to narrow down data  
-        - Use **Group & Aggregate** to summarize  
-        - Use **Join Tables** to combine datasets  
-        - Use **Update/ Delete/ Rename** for modifications  
-        - Use **CTE** for advanced queries  
-        - Use **Export Table** to download your work  
-        - Use **Quick Stats** for instant insights  
-        - Use **Advanced SQL** for custom logic  
-        - Visit [EXES Analytics](https://deric-exes-analytics.netlify.app) for more tools
-        """)
+        # --- Analyst Tips ---
+        with st.expander("📘 Analyst Tips", expanded=False):
+            st.markdown("""
+            - Use **Select Columns** to choose what you see  
+            - Use **Filter Rows** to narrow down data  
+            - Use **Group & Aggregate** to summarize  
+            - Use **Join Tables** to combine datasets  
+            - Use **CTE** for advanced queries  
+            - Use **Export Table** to download your work  
+            - Use **Quick Stats** for instant insights  
+            - Use **Advanced SQL** for custom logic  
+            - Visit [EXES Analytics](https://deric-exes-analytics.netlify.app) for more tools
+            """)
 
-    # Navigation buttons (only one set, no duplicates)
-    col_back, col_next = st.columns([1, 1], gap="small")
-    with col_back:
-        if st.button("← Back"):
-            navigate_to("Cleaner & Query")
-    with col_next:
-        if st.button("Next →"):
-            navigate_to("Reset")
+        col_back, col_next = st.columns([1, 1], gap="small")
+        with col_back:
+            if st.button("← Back"):
+                navigate_to("Cleaner & Query")
+        with col_next:
+            if st.button("Next →"):
+                navigate_to("Reset")

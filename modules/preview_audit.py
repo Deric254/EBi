@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 from utils import navigate_to
+import os
+from datetime import datetime
 
 def show(conn):
     cursor = conn.cursor()
@@ -25,6 +27,15 @@ def show(conn):
 
         st.download_button("📥 Export CSV", df.to_csv(index=False), f"{table}.csv", "text/csv")
         st.download_button("📥 Export JSON", df.to_json(orient="records"), f"{table}.json", "application/json")
+        # Save files to my_projects/files
+        files_dir = os.path.join("my_projects", "files")
+        os.makedirs(files_dir, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_path = os.path.join(files_dir, f"{table}_{timestamp}.csv")
+        json_path = os.path.join(files_dir, f"{table}_{timestamp}.json")
+        df.to_csv(csv_path, index=False)
+        df.to_json(json_path, orient="records")
+        st.success(f"CSV and JSON saved to My Projects.")
 
         cursor.execute(f"PRAGMA table_info('{table}')")
         schema = cursor.fetchall()

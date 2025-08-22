@@ -13,23 +13,23 @@ def intelligent_group(series, max_categories=6):
         return grouped
     return series
 
-def show(df, title="📊 Visualize Data", save_name=None):
+def show(df, title="📊 Visualize Data", key=None):
     st.subheader(title)
     if df is None or df.empty:
         st.info("No data to visualize.")
         return None
 
     columns = df.columns.tolist()
-    chart_type = st.selectbox("Chart type", ["Bar", "Line", "Pie", "Scatter"], key="viz_chart_type")
+    chart_type = st.selectbox("Chart type", ["Bar", "Line", "Pie", "Scatter"], key=f"viz_chart_type_{key}")
 
     default_x = columns[0]
     default_y = columns[1] if len(columns) > 1 else columns[0]
 
     col1, col2 = st.columns(2)
     with col1:
-        x_col = st.selectbox("X axis", columns, index=columns.index(default_x), key="viz_x_col")
+        x_col = st.selectbox("X axis", columns, index=columns.index(default_x), key=f"viz_x_col_{key}")
     with col2:
-        y_col = st.selectbox("Y axis", columns, index=columns.index(default_y), key="viz_y_col")
+        y_col = st.selectbox("Y axis", columns, index=columns.index(default_y), key=f"viz_y_col_{key}")
 
     x_data = intelligent_group(df[x_col])
     y_data = df[y_col]
@@ -48,7 +48,6 @@ def show(df, title="📊 Visualize Data", save_name=None):
                     fig, ax = plt.subplots()
                     grouped = plot_df.groupby(x_col)[y_col].sum()
                     bars = ax.bar(grouped.index, grouped.values, color=colors[:len(grouped.index)])
-                    # Add data labels
                     for bar in bars:
                         height = bar.get_height()
                         ax.annotate(f'{height:.2f}', xy=(bar.get_x() + bar.get_width() / 2, height),
@@ -92,14 +91,15 @@ def show(df, title="📊 Visualize Data", save_name=None):
         except Exception as e:
             st.error(f"Cannot plot pie chart: {e}")
 
-    st.markdown("**Insights:**")
-    st.write("Summary statistics for selected data:")
-    st.write(df.describe(include="all"))
-    st.write("Top values for X axis:")
-    st.write(x_data.value_counts().head())
-
-    # Save visual to my_projects/visuals
-    saved_path = None
+    # Show only simple, direct insights for non-technical users
+    st.markdown("**Quick Insights:**")
+    # Show top values and basic stats only
+    st.write(f"Most frequent {x_col}:")
+    st.write(x_data.value_counts().head(3))
+    if pd.api.types.is_numeric_dtype(y_data):
+        st.write(f"Average {y_col}: {y_data.mean():.2f}")
+        st.write(f"Max {y_col}: {y_data.max():.2f}")
+        st.write(f"Min {y_col}: {y_data.min():.2f}")
     if fig and st.button("Download Visual"):
         visuals_dir = os.path.join("my_projects", "visuals")
         os.makedirs(visuals_dir, exist_ok=True)

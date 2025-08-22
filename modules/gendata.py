@@ -48,31 +48,6 @@ def show(conn):
             st.session_state["selected_table"] = selected_table
             st.experimental_rerun()
 
-    # Table management section
-    st.markdown("#### Table Management")
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
-    tables = [row[0] for row in cursor.fetchall()]
-    if tables:
-        selected_table = st.selectbox("Select table to delete or rename", tables)
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("Delete Table"):
-                try:
-                    cursor.execute(f"DROP TABLE IF EXISTS '{selected_table}'")
-                    conn.commit()
-                    st.success(f"Table '{selected_table}' deleted.")
-                except Exception as e:
-                    st.error(f"Error deleting table: {e}")
-        with col2:
-            new_name = st.text_input("Rename table to:", value=selected_table, key="rename_table", placeholder="Enter new table name")
-            if st.button("Rename Table"):
-                try:
-                    cursor.execute(f"ALTER TABLE '{selected_table}' RENAME TO '{new_name}'")
-                    conn.commit()
-                    st.success(f"Table '{selected_table}' renamed to '{new_name}'.")
-                except Exception as e:
-                    st.error(f"Error renaming table: {e}")
-
     st.markdown("#### 1. Table & Columns")
     table_name = st.text_input("Table name", value="synthetic_data", placeholder="Enter table name")
     num_rows = st.number_input("Number of rows", min_value=10, max_value=100000, value=100)
@@ -128,6 +103,15 @@ def show(conn):
 
         df = pd.DataFrame(data)
         st.write("Preview of generated data:", df.head())
+        # Save generated data to my_projects/files
+        import os
+        from datetime import datetime
+        files_dir = os.path.join("my_projects", "files")
+        os.makedirs(files_dir, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        gen_path = os.path.join(files_dir, f"{table_name}_generated_{timestamp}.csv")
+        df.to_csv(gen_path, index=False)
+        st.success(f"Generated data saved to My Projects.")
 
         # Create table SQL
         sql_types = {

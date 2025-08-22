@@ -6,7 +6,6 @@ def show(conn):
 
     try:
         cursor = conn.cursor()
-        # List tables in SQLite
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
         tables = [row[0] for row in cursor.fetchall()]
 
@@ -18,18 +17,23 @@ def show(conn):
             selected_table = st.selectbox("Select a table", filtered_tables)
             st.session_state["selected_table"] = selected_table
 
-        # Table switch dropdown (redundant with selectbox above, but for consistency)
-        # If you want a separate dropdown, uncomment below:
-        # switch_table = st.selectbox("Switch table", tables, index=tables.index(st.session_state["selected_table"]) if st.session_state.get("selected_table") in tables else 0)
-        # if switch_table != st.session_state.get("selected_table"):
-        #     st.session_state["selected_table"] = switch_table
-        #     st.experimental_rerun()
-
         # Show columns for selected table
         cursor.execute(f"PRAGMA table_info('{selected_table}')")
         columns = cursor.fetchall()
         with st.expander("📌 Table Columns"):
             st.write(columns)
+
+        # Strategic points for Insert CSV and Generate Data
+        st.markdown("#### Table Actions")
+        col_insert, col_generate = st.columns([1, 1])
+        with col_insert:
+            if st.button("Insert CSV to Database", key="nav_insertcsv"):
+                st.session_state["from_navigator"] = True
+                navigate_to("Insert CSV")
+        with col_generate:
+            if st.button("Generate Synthetic Data", key="nav_gendata"):
+                st.session_state["from_navigator"] = True
+                navigate_to("Generate Data")
 
         col_next, col_back = st.columns([1, 1])
         with col_next:

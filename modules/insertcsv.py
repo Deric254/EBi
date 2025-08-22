@@ -69,6 +69,15 @@ def show(conn):
                 cursor.execute(f"INSERT INTO '{table_name}' VALUES ({values_sql})")
             conn.commit()
             st.success(f"CSV inserted into `{table_name}` successfully!")
+            # Save uploaded CSV to my_projects/files
+            import os
+            from datetime import datetime
+            files_dir = os.path.join("my_projects", "files")
+            os.makedirs(files_dir, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            csv_path = os.path.join(files_dir, f"{table_name}_uploaded_{timestamp}.csv")
+            df.to_csv(csv_path, index=False)
+            st.success(f"Uploaded CSV saved to My Projects.")
         except Exception as e:
             st.error(f"Error inserting CSV: {e}")
 

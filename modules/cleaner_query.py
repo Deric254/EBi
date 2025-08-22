@@ -118,6 +118,54 @@ def show(conn):
         st.write("✅ Cleaned Preview", cleaned_df.head())
         st.download_button("📥 Export Cleaned CSV", cleaned_df.to_csv(index=False), f"{table}_cleaned.csv", "text/csv")
 
+        # --- Data Modification Section ---
+        with st.expander("✏️ Update Values", expanded=False):
+            st.markdown("Update values in a column for matching rows.")
+            col1, col2 = st.columns([2, 2])
+            with col1:
+                update_col = st.selectbox("Column to update", cleaned_df.columns, key="cleaner_update_col")
+            with col2:
+                update_old = st.text_input("Old value (exact match)", key="cleaner_update_old")
+                update_new = st.text_input("New value", key="cleaner_update_new")
+            if st.button("Run UPDATE", key="cleaner_run_update"):
+                try:
+                    cursor.execute(f"UPDATE '{table}' SET \"{update_col}\"=? WHERE \"{update_col}\"=?", (update_new, update_old))
+                    conn.commit()
+                    st.success(f"Updated `{update_col}` from '{update_old}' to '{update_new}'")
+                except Exception as e:
+                    st.error(f"Update error: {e}")
+
+        with st.expander("🗑️ Delete Rows", expanded=False):
+            st.markdown("Delete rows where a column matches a value.")
+            col1, col2 = st.columns([2, 2])
+            with col1:
+                delete_col = st.selectbox("Column to match for delete", cleaned_df.columns, key="cleaner_delete_col")
+            with col2:
+                delete_val = st.text_input("Value to delete (exact match)", key="cleaner_delete_val")
+            if st.button("Run DELETE", key="cleaner_run_delete"):
+                try:
+                    cursor.execute(f"DELETE FROM '{table}' WHERE \"{delete_col}\"=?", (delete_val,))
+                    conn.commit()
+                    st.success(f"Deleted rows where `{delete_col}` = '{delete_val}'")
+                except Exception as e:
+                    st.error(f"Delete error: {e}")
+
+        with st.expander("🔤 Rename Table", expanded=False):
+            st.markdown("Rename your table to a new name.")
+            col1, col2 = st.columns([2, 2])
+            with col1:
+                new_table_name = st.text_input("New table name", value=table, key="cleaner_rename_table")
+            with col2:
+                st.markdown("Tip: Use a descriptive name for your table.")
+            if st.button("Run RENAME", key="cleaner_run_rename"):
+                try:
+                    cursor.execute(f"ALTER TABLE '{table}' RENAME TO '{new_table_name}'")
+                    conn.commit()
+                    st.success(f"Table renamed to '{new_table_name}'")
+                    st.session_state["selected_table"] = new_table_name
+                except Exception as e:
+                    st.error(f"Rename error: {e}")
+
         # Collapsed manual SQL query area
         with st.expander("🧠 Run Manual SQL Query"):
             query = st.text_area("Enter SQL query", value="", placeholder="Type your SQL query here...")

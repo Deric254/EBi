@@ -12,11 +12,18 @@ def show(conn):
 
         col1, col2 = st.columns(2)
         with col1:
-            search_table = st.text_input("🔎 Search tables")
+            search_table = st.text_input("🔎 Search tables", placeholder="Type table name...")
         with col2:
             filtered_tables = [t for t in tables if search_table.lower() in t.lower()] if search_table else tables
             selected_table = st.selectbox("Select a table", filtered_tables)
             st.session_state["selected_table"] = selected_table
+
+        # Table switch dropdown (redundant with selectbox above, but for consistency)
+        # If you want a separate dropdown, uncomment below:
+        # switch_table = st.selectbox("Switch table", tables, index=tables.index(st.session_state["selected_table"]) if st.session_state.get("selected_table") in tables else 0)
+        # if switch_table != st.session_state.get("selected_table"):
+        #     st.session_state["selected_table"] = switch_table
+        #     st.experimental_rerun()
 
         # Show columns for selected table
         cursor.execute(f"PRAGMA table_info('{selected_table}')")

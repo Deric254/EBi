@@ -7,6 +7,16 @@ def show(conn):
 
     cursor = conn.cursor()
 
+    # Table switch dropdown
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+    tables = [row[0] for row in cursor.fetchall()]
+    if tables:
+        current_table = st.session_state.get("selected_table", tables[0])
+        selected_table = st.selectbox("Switch to table", tables, index=tables.index(current_table) if current_table in tables else 0)
+        if selected_table != current_table:
+            st.session_state["selected_table"] = selected_table
+            st.experimental_rerun()
+
     # Step 1: Upload CSV
     uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
     if not uploaded_file:
@@ -20,7 +30,7 @@ def show(conn):
 
     # Step 2: Table Name
     default_table = uploaded_file.name.split(".")[0]
-    table_name = st.text_input("Table name", value=default_table)
+    table_name = st.text_input("Table name", value=default_table, placeholder="Enter table name")
 
     # Step 3: Datatype Selection
     st.markdown("#### Column Datatypes")

@@ -1,7 +1,7 @@
 import streamlit as st
 import sqlite3
 from config import DB_PATH
-from modules import welcome, insertcsv, navigator, preview_audit, cleaner_query, analyst, reset, gendata
+from modules import welcome, insertcsv, navigator, preview_audit, cleaner_query, analyst, reset, gendata, my_projects
 
 # Connect to SQLite
 def get_connection():
@@ -154,6 +154,11 @@ st.markdown("""
             padding: 0.6rem !important;
         }
 
+        /* Caret (text cursor) color for input and textarea */
+        input, textarea, .stTextInput>div>input, .stTextArea>div>textarea {
+            caret-color: #111111 !important;
+        }
+
         /* Dropdown arrows and icons */
         .stSelectbox [data-baseweb="select"] > div::after {
             border-color: var(--brand-black) transparent transparent transparent !important;
@@ -246,14 +251,13 @@ st.sidebar.markdown("### 🧠 EXES Base Intelligence")
 st.sidebar.markdown("_We analyze, you decide_", unsafe_allow_html=True)
 selected = st.sidebar.radio("📂 Modules", [
     "Welcome", "Navigator", "Preview & Audit", "Cleaner & Query", "Analyst", 
-    "Reset", "Insert CSV", "Generate Data"
+    "Reset", "Insert CSV", "Generate Data", "My Projects"
 ], index=["Welcome", "Navigator", "Preview & Audit", "Cleaner & Query", "Analyst", 
-          "Reset", "Insert CSV", "Generate Data"].index(st.session_state["page"]))
+          "Reset", "Insert CSV", "Generate Data", "My Projects"].index(st.session_state["page"]))
 
 if selected != st.session_state["page"]:
     st.session_state["page"] = selected
 
-# Ensure a table is selected if required and none is set
 def ensure_table_selected(conn):
     cursor = conn.cursor()
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
@@ -297,6 +301,8 @@ elif page == "Insert CSV":
     insertcsv.show(conn)
 elif page == "Generate Data":
     gendata.show(conn)
+elif page == "My Projects":
+    my_projects.show()
 
 # Footer
 #st.markdown("<div class='footer-text'>© 2025 EXES Intelligence — We analyze, you decide</div>", unsafe_allow_html=True)

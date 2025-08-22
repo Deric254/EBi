@@ -38,6 +38,16 @@ def show(conn):
 
     cursor = conn.cursor()
 
+    # Table switch dropdown
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+    tables = [row[0] for row in cursor.fetchall()]
+    if tables:
+        current_table = st.session_state.get("selected_table", tables[0])
+        selected_table = st.selectbox("Switch to table", tables, index=tables.index(current_table) if current_table in tables else 0)
+        if selected_table != current_table:
+            st.session_state["selected_table"] = selected_table
+            st.experimental_rerun()
+
     # Table management section
     st.markdown("#### Table Management")
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
@@ -54,7 +64,7 @@ def show(conn):
                 except Exception as e:
                     st.error(f"Error deleting table: {e}")
         with col2:
-            new_name = st.text_input("Rename table to:", value=selected_table, key="rename_table")
+            new_name = st.text_input("Rename table to:", value=selected_table, key="rename_table", placeholder="Enter new table name")
             if st.button("Rename Table"):
                 try:
                     cursor.execute(f"ALTER TABLE '{selected_table}' RENAME TO '{new_name}'")
@@ -64,7 +74,7 @@ def show(conn):
                     st.error(f"Error renaming table: {e}")
 
     st.markdown("#### 1. Table & Columns")
-    table_name = st.text_input("Table name", value="synthetic_data")
+    table_name = st.text_input("Table name", value="synthetic_data", placeholder="Enter table name")
     num_rows = st.number_input("Number of rows", min_value=10, max_value=100000, value=100)
 
     st.markdown("Define columns and patterns:")
@@ -75,7 +85,7 @@ def show(conn):
     for i in range(n_cols):
         col1, col2 = st.columns([2,2])
         with col1:
-            col_name = st.text_input(f"Column {i+1} name", value=f"col_{i+1}", key=f"colname_{i}")
+            col_name = st.text_input(f"Column {i+1} name", value=f"col_{i+1}", key=f"colname_{i}", placeholder="Enter column name")
         with col2:
             inferred_type = infer_type_from_name(col_name)
             default_index = col_types.index(inferred_type) if inferred_type in col_types else 0

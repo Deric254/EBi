@@ -4,13 +4,50 @@ import numpy as np
 from utils import navigate_to
 
 def show(conn):
-    table = st.session_state.get("selected_table")
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+    tables = [row[0] for row in cursor.fetchall()]
+    current_table = st.session_state.get("selected_table", tables[0] if tables else None)
+    table = current_table
+
     if not table:
         st.warning("Please select a table first.")
         return
 
     st.subheader(f"🧹 Cleaner & Query for `{table}`")
     cursor = conn.cursor()
+
+    # --- Table Management Section ---
+    st.markdown("#### Table Management")
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Delete Table"):
+            try:
+                cursor.execute(f"DROP TABLE IF EXISTS '{table}'")
+                conn.commit()
+                st.success(f"Table '{table}' deleted.")
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+                tables = [row[0] for row in cursor.fetchall()]
+                if tables:
+                    st.session_state["selected_table"] = tables[0]
+                else:
+                    st.session_state.pop("selected_table", None)
+                st.experimental_rerun()
+            except Exception as e:
+                st.error(f"Error deleting table: {e}")
+    with col2:
+        new_name = st.text_input("Rename table to:", value=table, key="rename_table", placeholder="Enter new table name")
+        if st.button("Rename Table"):
+            try:
+                cursor.execute(f"ALTER TABLE '{table}' RENAME TO '{new_name}'")
+                conn.commit()
+                st.success(f"Table '{table}' renamed to '{new_name}'.")
+                st.session_state["selected_table"] = new_name
+                # Refresh table list after rename
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+                tables = [row[0] for row in cursor.fetchall()]
+            except Exception as e:
+                st.markdown(f"<span style='color:#d90429;font-weight:bold;'>Rename error: {e}</span>", unsafe_allow_html=True)
 
     try:
         cursor.execute(f"SELECT * FROM '{table}' LIMIT 1000")
@@ -31,63 +68,43 @@ def show(conn):
             st.write(blanks)
             st.markdown(f"<span style='color:black'>Duplicate rows: {duplicates}</span>", unsafe_allow_html=True)
 
-        # Checkboxes and labels in the same line
-        col1, col2 = st.columns([1, 8])
-        with col1:
-            drop_nulls = st.checkbox("", value=True, key="drop_nulls")
-        with col2:
-            st.markdown("<span style='color:black'>Drop rows with NULLs</span>", unsafe_allow_html=True)
-
-        col1, col2 = st.columns([1, 8])
-        with col1:
-            drop_blanks = st.checkbox("", value=True, key="drop_blanks")
-        with col2:
-            st.markdown("<span style='color:black'>Drop rows with blank strings</span>", unsafe_allow_html=True)
-
-        col1, col2 = st.columns([1, 8])
-        with col1:
-            drop_duplicates = st.checkbox("", value=True, key="drop_duplicates")
-        with col2:
-            st.markdown("<span style='color:black'>Drop duplicate rows</span>", unsafe_allow_html=True)
-
-        col1, col2 = st.columns([1, 8])
-        with col1:
-            normalize_case = st.checkbox("", value=True, key="normalize_case")
-        with col2:
-            st.markdown("<span style='color:black'>Normalize text columns to Title Case</span>", unsafe_allow_html=True)
-
-        col1, col2 = st.columns([1, 8])
-        with col1:
-            suggest_types = st.checkbox("", value=True, key="suggest_types")
-        with col2:
-            st.markdown("<span style='color:black'>Suggest column types</span>", unsafe_allow_html=True)
-
-        col1, col2 = st.columns([1, 8])
-        with col1:
-            detect_outliers = st.checkbox("", value=True, key="detect_outliers")
-        with col2:
-            st.markdown("<span style='color:black'>Detect numeric outliers</span>", unsafe_allow_html=True)
+        # Cleaning checkboxes and logic
+        checkbox_states = {}
+        for label, key in [
+            ("Drop rows with NULLs", "drop_nulls"),
+            ("Drop rows with blank strings", "drop_blanks"),
+            ("Drop duplicate rows", "drop_duplicates"),
+            ("Normalize text columns to Title Case", "normalize_case"),
+            ("Suggest column types", "suggest_types"),
+            ("Detect numeric outliers", "detect_outliers")
+        ]:
+            col1, col2 = st.columns([1, 8])
+            with col1:
+                checked = st.checkbox("", value=True, key=key)
+            with col2:
+                st.markdown(f"<span style='color:black'>{label}</span>", unsafe_allow_html=True)
+            checkbox_states[key] = checked
 
         cleaned_df = df.copy()
 
-        if drop_duplicates:
+        if checkbox_states["drop_duplicates"]:
             cleaned_df = cleaned_df.drop_duplicates()
 
-        if drop_blanks:
+        if checkbox_states["drop_blanks"]:
             cleaned_df.replace('', np.nan, inplace=True)
 
-        if drop_nulls:
+        if checkbox_states["drop_nulls"]:
             cleaned_df.dropna(inplace=True)
 
-        if normalize_case:
+        if checkbox_states["normalize_case"]:
             for col in cleaned_df.select_dtypes(include='object').columns:
                 cleaned_df[col] = cleaned_df[col].astype(str).str.title()
 
-        if suggest_types:
+        if checkbox_states["suggest_types"]:
             with st.expander("📊 Suggested Column Types"):
                 st.write(cleaned_df.dtypes)
 
-        if detect_outliers:
+        if checkbox_states["detect_outliers"]:
             with st.expander("📈 Outlier Detection"):
                 for col in cleaned_df.select_dtypes(include=np.number).columns:
                     q1 = cleaned_df[col].quantile(0.25)
@@ -103,7 +120,7 @@ def show(conn):
 
         # Collapsed manual SQL query area
         with st.expander("🧠 Run Manual SQL Query"):
-            query = st.text_area("Enter SQL query")
+            query = st.text_area("Enter SQL query", value="", placeholder="Type your SQL query here...")
             if st.button("Run Query"):
                 try:
                     cursor.execute(query)
@@ -126,5 +143,4 @@ def show(conn):
                 navigate_to("Analyst")
 
     except Exception as e:
-        st.error(f"Error loading or cleaning data: {e}")
         st.error(f"Error loading or cleaning data: {e}")

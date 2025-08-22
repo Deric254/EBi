@@ -3,7 +3,12 @@ import pandas as pd
 from utils import navigate_to
 
 def show(conn):
-    table = st.session_state.get("selected_table")
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+    tables = [row[0] for row in cursor.fetchall()]
+    current_table = st.session_state.get("selected_table", tables[0] if tables else None)
+    table = current_table
+
     if not table:
         st.warning("Please select a table first.")
         return

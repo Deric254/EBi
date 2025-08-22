@@ -1,11 +1,11 @@
 import streamlit as st
-import mysql.connector
-from config import DB_CONFIG
+import sqlite3
+from config import DB_PATH
 from modules import welcome, insertcsv, navigator, preview_audit, cleaner_query, analyst, reset, gendata
 
-# Connect to MySQL
+# Connect to SQLite
 def get_connection():
-    return mysql.connector.connect(**DB_CONFIG)
+    return sqlite3.connect(DB_PATH)
 
 conn = get_connection()
 

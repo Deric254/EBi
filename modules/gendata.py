@@ -11,31 +11,7 @@ def show(conn):
 
     cursor = conn.cursor()
 
-    st.markdown("#### 1. Database Options")
-    db_mode = st.radio("Database option", ["Use existing", "Create new"])
-    cursor.execute("SHOW DATABASES")
-    dbs = [db[0] for db in cursor.fetchall()]
-    if db_mode == "Use existing":
-        selected_db = st.selectbox("Select database", dbs)
-    else:
-        selected_db = st.text_input("Enter new database name")
-        if selected_db and st.button("Create Database"):
-            try:
-                cursor.execute(f"CREATE DATABASE `{selected_db}`")
-                conn.commit()
-                st.success(f"Database `{selected_db}` created.")
-                cursor.execute("SHOW DATABASES")
-                dbs = [db[0] for db in cursor.fetchall()]
-            except Exception as e:
-                st.error(f"Error creating database: {e}")
-
-    if not selected_db:
-        st.info("Select or create a database to continue.")
-        return
-
-    cursor.execute(f"USE `{selected_db}`")
-
-    st.markdown("#### 2. Table & Columns")
+    st.markdown("#### 1. Table & Columns")
     table_name = st.text_input("Table name", value="synthetic_data")
     num_rows = st.number_input("Number of rows", min_value=10, max_value=100000, value=100)
 
@@ -84,20 +60,20 @@ def show(conn):
 
         # Create table SQL
         sql_types = {
-            "Name": "VARCHAR(100)",
-            "Email": "VARCHAR(100)",
-            "Phone": "VARCHAR(30)",
-            "Address": "VARCHAR(255)",
-            "Date": "DATE",
-            "Integer": "INT",
-            "Float": "FLOAT",
-            "Category": "VARCHAR(10)",
-            "Boolean": "BOOLEAN",
+            "Name": "TEXT",
+            "Email": "TEXT",
+            "Phone": "TEXT",
+            "Address": "TEXT",
+            "Date": "TEXT",
+            "Integer": "INTEGER",
+            "Float": "REAL",
+            "Category": "TEXT",
+            "Boolean": "INTEGER",
             "Text": "TEXT"
         }
-        cols_sql = ", ".join([f"`{col}` {sql_types[typ]}" for col, typ in col_defs])
+        cols_sql = ", ".join([f"'{col}' {sql_types[typ]}" for col, typ in col_defs])
         try:
-            cursor.execute(f"CREATE TABLE IF NOT EXISTS `{table_name}` ({cols_sql})")
+            cursor.execute(f"CREATE TABLE IF NOT EXISTS '{table_name}' ({cols_sql})")
             conn.commit()
             # Insert data
             for _, row in df.iterrows():
@@ -106,18 +82,16 @@ def show(conn):
                     val = row[col]
                     if pd.isnull(val):
                         values.append("NULL")
-                    elif typ in ["Name", "Email", "Phone", "Address", "Category", "Text"]:
+                    elif typ in ["Name", "Email", "Phone", "Address", "Category", "Text", "Date"]:
                         values.append(f"'{str(val).replace('\'','\\\'')}'")
-                    elif typ == "Date":
-                        values.append(f"'{val}'")
                     elif typ == "Boolean":
                         values.append(str(int(val)))
                     else:
                         values.append(str(val))
                 values_sql = ", ".join(values)
-                cursor.execute(f"INSERT INTO `{table_name}` VALUES ({values_sql})")
+                cursor.execute(f"INSERT INTO '{table_name}' VALUES ({values_sql})")
             conn.commit()
-            st.success(f"Generated and inserted `{num_rows}` rows into `{selected_db}`.`{table_name}`!")
+            st.success(f"Generated and inserted `{num_rows}` rows into `{table_name}`!")
         except Exception as e:
             st.error(f"Error creating/inserting: {e}")
 

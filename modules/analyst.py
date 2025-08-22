@@ -7,27 +7,17 @@ def show(conn):
 
     cursor = conn.cursor()
 
-    # Show current database and allow switching
-    cursor.execute("SHOW DATABASES")
-    dbs = [db[0] for db in cursor.fetchall()]
-    current_db = st.session_state.get("selected_db", dbs[0] if dbs else None)
-    selected_db = st.selectbox("Current Database", dbs, index=dbs.index(current_db) if current_db in dbs else 0)
-    if selected_db != current_db:
-        st.session_state["selected_db"] = selected_db
-        current_db = selected_db
-    cursor.execute(f"USE `{current_db}`")
-
-    # Preview tables in current database
-    cursor.execute("SHOW TABLES")
+    # List tables in SQLite
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
     tables = [t[0] for t in cursor.fetchall()]
-    st.markdown(f"**Tables in `{current_db}`:**")
+    st.markdown(f"**Tables in database:**")
     st.write(tables)
 
     # Table selection for analytics
     table = st.selectbox("Select table for analytics", tables) if tables else None
 
     if table:
-        cursor.execute(f"SELECT * FROM `{table}` LIMIT 1000")
+        cursor.execute(f"SELECT * FROM '{table}' LIMIT 1000")
         rows = cursor.fetchall()
         cols = [desc[0] for desc in cursor.description]
         df = pd.DataFrame(rows, columns=cols)

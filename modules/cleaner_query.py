@@ -4,18 +4,16 @@ import numpy as np
 from utils import navigate_to
 
 def show(conn):
-    db = st.session_state.get("selected_db")
     table = st.session_state.get("selected_table")
-    if not db or not table:
-        st.warning("Please select a database and table first.")
+    if not table:
+        st.warning("Please select a table first.")
         return
 
     st.subheader(f"🧹 Cleaner & Query for `{table}`")
     cursor = conn.cursor()
-    cursor.execute(f"USE `{db}`")
 
     try:
-        cursor.execute(f"SELECT * FROM `{table}` LIMIT 1000")
+        cursor.execute(f"SELECT * FROM '{table}' LIMIT 1000")
         rows = cursor.fetchall()
         cols = [desc[0] for desc in cursor.description]
         df = pd.DataFrame(rows, columns=cols)
@@ -95,5 +93,7 @@ def show(conn):
             if st.button("Next →"):
                 navigate_to("Analyst")
 
+    except Exception as e:
+        st.error(f"Error loading or cleaning data: {e}")
     except Exception as e:
         st.error(f"Error loading or cleaning data: {e}")

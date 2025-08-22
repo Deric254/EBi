@@ -4,16 +4,18 @@ from datetime import datetime
 
 LOG_PATH = os.path.join("my_projects", "project_log.txt")
 
-def log_action(action, fname, ftype):
+def log_action(action, fname, ftype, extra=""):
     with open(LOG_PATH, "a") as f:
-        f.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | {action} | {ftype} | {fname}\n")
+        f.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | {action} | {ftype} | {fname} {extra}\n")
 
 def show():
     st.subheader("🗂️ My Projects")
     visuals_dir = os.path.join("my_projects", "visuals")
     files_dir = os.path.join("my_projects", "files")
 
-    # --- Unified Project Items Container ---
+    # --- Search Function ---
+    search_query = st.text_input("🔎 Search projects (by name, date, etc)", value="", placeholder="Type to search...").lower().strip()
+
     st.markdown("""
     <style>
     .project-card {
@@ -68,9 +70,15 @@ def show():
     st.markdown("### Visuals")
     if os.path.exists(visuals_dir):
         visuals = sorted(os.listdir(visuals_dir), key=lambda x: os.path.getmtime(os.path.join(visuals_dir, x)), reverse=True)
-        if visuals:
+        filtered_visuals = []
+        for fname in visuals:
+            fpath = os.path.join(visuals_dir, fname)
+            meta = f"{fname} {datetime.fromtimestamp(os.path.getmtime(fpath)).strftime('%Y-%m-%d %H:%M:%S')}".lower()
+            if search_query in meta:
+                filtered_visuals.append(fname)
+        if filtered_visuals:
             cols = st.columns(3)
-            for idx, fname in enumerate(visuals):
+            for idx, fname in enumerate(filtered_visuals):
                 fpath = os.path.join(visuals_dir, fname)
                 with cols[idx % 3]:
                     with st.container():
@@ -82,31 +90,33 @@ def show():
                                 </div>
                                 <div class="project-title">{fname}</div>
                                 <div class="project-meta">Captured: {datetime.fromtimestamp(os.path.getmtime(fpath)).strftime('%Y-%m-%d %H:%M:%S')}</div>
-                                <div class="project-actions">
+                                <div class="project-actions" style="display:flex;gap:0.5rem;">
                             """, unsafe_allow_html=True)
-                        # Buttons inside card
-                        btn_col1, btn_col2 = st.columns([1,1])
-                        with btn_col1:
-                            if st.button("🗑️", key=f"del_visual_{fname}", help="Delete", use_container_width=False):
-                                os.remove(fpath)
-                                log_action("DELETE", fname, "visual")
-                                st.markdown("<span style='color:#d90429;font-weight:bold;'>Deleted successfully.</span>", unsafe_allow_html=True)
-                                st.rerun()
-                        with btn_col2:
-                            pass  # No rename for visuals
+                        # Buttons adjacent in one line
+                        if st.button("🗑️", key=f"del_visual_{fname}", help="Delete", use_container_width=False):
+                            os.remove(fpath)
+                            log_action("DELETE", fname, "visual")
+                            st.markdown("<span style='font-weight:bold;color:#ff5722;background:#fffbe6;padding:4px 12px;border-radius:6px;display:inline-block;'>Deleted successfully.</span>", unsafe_allow_html=True)
+                            st.rerun()
                         st.markdown("</div></div>", unsafe_allow_html=True)
         else:
-            st.markdown("<span style='font-weight:bold;color:#d90429;'>No visuals saved yet.</span>", unsafe_allow_html=True)
+            st.markdown("<span style='font-weight:bold;color:#ff5722;background:#fffbe6;padding:4px 12px;border-radius:6px;display:inline-block;'>No visuals found for your search.</span>", unsafe_allow_html=True)
     else:
-        st.markdown("<span style='font-weight:bold;color:#d90429;'>No visuals saved yet.</span>", unsafe_allow_html=True)
+        st.markdown("<span style='font-weight:bold;color:#ff5722;background:#fffbe6;padding:4px 12px;border-radius:6px;display:inline-block;'>No visuals saved yet.</span>", unsafe_allow_html=True)
 
     # --- Files ---
     st.markdown("### Files")
     if os.path.exists(files_dir):
         files = sorted(os.listdir(files_dir), key=lambda x: os.path.getmtime(os.path.join(files_dir, x)), reverse=True)
-        if files:
+        filtered_files = []
+        for fname in files:
+            fpath = os.path.join(files_dir, fname)
+            meta = f"{fname} {datetime.fromtimestamp(os.path.getmtime(fpath)).strftime('%Y-%m-%d %H:%M:%S')}".lower()
+            if search_query in meta:
+                filtered_files.append(fname)
+        if filtered_files:
             cols = st.columns(3)
-            for idx, fname in enumerate(files):
+            for idx, fname in enumerate(filtered_files):
                 fpath = os.path.join(files_dir, fname)
                 with cols[idx % 3]:
                     with st.container():
@@ -115,22 +125,20 @@ def show():
                             <div class="project-card">
                                 <div class="project-title">{fname}</div>
                                 <div class="project-meta">Saved: {datetime.fromtimestamp(os.path.getmtime(fpath)).strftime('%Y-%m-%d %H:%M:%S')}</div>
-                                <div class="project-actions">
+                                <div class="project-actions" style="display:flex;gap:0.5rem;">
                             """, unsafe_allow_html=True)
-                        btn_col1, btn_col2 = st.columns([1,1])
-                        with btn_col1:
-                            st.download_button("⬇️", fpath, file_name=fname, help="Download", use_container_width=False)
-                        with btn_col2:
-                            if st.button("🗑️", key=f"del_file_{fname}", help="Delete", use_container_width=False):
-                                os.remove(fpath)
-                                log_action("DELETE", fname, "file")
-                                st.markdown("<span style='color:#d90429;font-weight:bold;'>Deleted successfully.</span>", unsafe_allow_html=True)
-                                st.rerun()
+                        # Buttons adjacent in one line
+                        st.download_button("⬇️", fpath, file_name=fname, help="Download", use_container_width=False)
+                        if st.button("🗑️", key=f"del_file_{fname}", help="Delete", use_container_width=False):
+                            os.remove(fpath)
+                            log_action("DELETE", fname, "file")
+                            st.markdown("<span style='font-weight:bold;color:#ff5722;background:#fffbe6;padding:4px 12px;border-radius:6px;display:inline-block;'>Deleted successfully.</span>", unsafe_allow_html=True)
+                            st.rerun()
                         st.markdown("</div></div>", unsafe_allow_html=True)
         else:
-            st.markdown("<span style='font-weight:bold;color:#d90429;'>No files saved yet.</span>", unsafe_allow_html=True)
+            st.markdown("<span style='font-weight:bold;color:#ff5722;background:#fffbe6;padding:4px 12px;border-radius:6px;display:inline-block;'>No files found for your search.</span>", unsafe_allow_html=True)
     else:
-        st.markdown("<span style='font-weight:bold;color:#d90429;'>No files saved yet.</span>", unsafe_allow_html=True)
+        st.markdown("<span style='font-weight:bold;color:#ff5722;background:#fffbe6;padding:4px 12px;border-radius:6px;display:inline-block;'>No files saved yet.</span>", unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -140,10 +148,11 @@ def show():
         with open(LOG_PATH, "r") as f:
             logs = f.readlines()
         if logs:
+            logs_sorted = sorted(logs, reverse=True)
             st.markdown("<div style='background:#f6f6f6;border-radius:8px;padding:1rem;margin-bottom:1rem;'><b>Recent Actions:</b></div>", unsafe_allow_html=True)
-            for line in reversed(logs[-20:]):
+            for line in logs_sorted[:40]:
                 st.markdown(f"<div style='font-size:0.95rem;color:#333;padding:0.2rem 0;font-weight:bold;'>{line.strip()}</div>", unsafe_allow_html=True)
         else:
-            st.markdown("<span style='font-weight:bold;color:#d90429;'>No actions logged yet.</span>", unsafe_allow_html=True)
+            st.markdown("<span style='font-weight:bold;color:#ff5722;background:#fffbe6;padding:4px 12px;border-radius:6px;display:inline-block;'>No actions logged yet.</span>", unsafe_allow_html=True)
     else:
-        st.markdown("<span style='font-weight:bold;color:#d90429;'>No actions logged yet.</span>", unsafe_allow_html=True)
+        st.markdown("<span style='font-weight:bold;color:#ff5722;background:#fffbe6;padding:4px 12px;border-radius:6px;display:inline-block;'>No actions logged yet.</span>", unsafe_allow_html=True)

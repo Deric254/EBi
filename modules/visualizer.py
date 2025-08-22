@@ -16,7 +16,7 @@ def intelligent_group(series, max_categories=6):
 def show(df, title="📊 Visualize Data", key=None):
     st.subheader(title)
     if df is None or df.empty:
-        st.info("No data to visualize.")
+        st.markdown("<span style='font-weight:bold;color:#49A078;background:#e8f6ed;padding:6px 16px;border-radius:8px;display:inline-block;'>No data to visualize.</span>", unsafe_allow_html=True)
         return None
 
     columns = df.columns.tolist()
@@ -37,12 +37,12 @@ def show(df, title="📊 Visualize Data", key=None):
 
     fig = None
     if x_col == y_col:
-        st.warning("X and Y axis must be different columns for visualization.")
+        st.markdown("<span style='font-weight:bold;color:#49A078;background:#e8f6ed;padding:6px 16px;border-radius:8px;display:inline-block;'>X and Y axis must be different columns for visualization.</span>", unsafe_allow_html=True)
     elif chart_type in ["Bar", "Line", "Scatter"]:
         try:
             plot_df = pd.DataFrame({x_col: x_data, y_col: y_data}).dropna()
             if plot_df.empty:
-                st.info("No data to plot for selected columns.")
+                st.markdown("<span style='font-weight:bold;color:#49A078;background:#e8f6ed;padding:6px 16px;border-radius:8px;display:inline-block;'>No data to plot for selected columns.</span>", unsafe_allow_html=True)
             else:
                 if chart_type == "Bar":
                     fig, ax = plt.subplots()
@@ -73,13 +73,13 @@ def show(df, title="📊 Visualize Data", key=None):
             if fig:
                 st.pyplot(fig)
         except Exception as e:
-            st.error(f"Cannot plot: {e}")
+            st.markdown(f"<span style='font-weight:bold;color:#d90429;background:#fffbe6;padding:6px 16px;border-radius:8px;display:inline-block;'>Cannot plot: {e}</span>", unsafe_allow_html=True)
     elif chart_type == "Pie":
         try:
             pie_data = pd.DataFrame({x_col: x_data, y_col: y_data}).dropna()
             grouped = pie_data.groupby(x_col)[y_col].sum().reset_index()
             if grouped.empty or grouped[x_col].ndim != 1 or grouped[y_col].ndim != 1:
-                st.info("Cannot plot pie chart for selected columns.")
+                st.markdown("<span style='font-weight:bold;color:#49A078;background:#e8f6ed;padding:6px 16px;border-radius:8px;display:inline-block;'>Cannot plot pie chart for selected columns.</span>", unsafe_allow_html=True)
             else:
                 fig, ax = plt.subplots()
                 wedges, texts, autotexts = ax.pie(grouped[y_col], labels=grouped[x_col], autopct='%1.1f%%',
@@ -89,7 +89,7 @@ def show(df, title="📊 Visualize Data", key=None):
                 ax.set_title(f"{y_col} by {x_col}")
                 st.pyplot(fig)
         except Exception as e:
-            st.error(f"Cannot plot pie chart: {e}")
+            st.markdown(f"<span style='font-weight:bold;color:#d90429;background:#fffbe6;padding:6px 16px;border-radius:8px;display:inline-block;'>Cannot plot pie chart: {e}</span>", unsafe_allow_html=True)
 
     # Show only simple, direct insights for non-technical users
     st.markdown("**Quick Insights:**")
@@ -100,13 +100,21 @@ def show(df, title="📊 Visualize Data", key=None):
         st.write(f"Average {y_col}: {y_data.mean():.2f}")
         st.write(f"Max {y_col}: {y_data.max():.2f}")
         st.write(f"Min {y_col}: {y_data.min():.2f}")
+    saved_path = None
     if fig and st.button("Download Visual"):
         visuals_dir = os.path.join("my_projects", "visuals")
         os.makedirs(visuals_dir, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        fname = save_name or f"visual_{timestamp}.png"
+        fname = f"visual_{timestamp}.png"
+        temp_path = os.path.join(os.getcwd(), fname)
+        fig.savefig(temp_path, bbox_inches='tight')
         save_path = os.path.join(visuals_dir, fname)
-        fig.savefig(save_path, bbox_inches='tight')
-        st.success(f"Visual saved as {fname} in my_projects/visuals")
-        saved_path = save_path
+        try:
+            os.replace(temp_path, save_path)
+        except Exception as e:
+            st.markdown(f"<span style='font-weight:bold;color:#d90429;background:#fffbe6;padding:6px 16px;border-radius:8px;display:inline-block;'>Error saving visual: {e}</span>", unsafe_allow_html=True)
+            save_path = None
+        if save_path:
+            st.markdown(f"<span style='font-weight:bold;color:#49A078;background:#e8f6ed;padding:6px 16px;border-radius:8px;display:inline-block;'>Visual saved as {fname} in my_projects/visuals</span>", unsafe_allow_html=True)
+            saved_path = save_path
     return saved_path

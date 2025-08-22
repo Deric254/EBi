@@ -1,0 +1,11 @@
+date,category,region,revenue,profit,units_sold
+0.0,Electronics,North,2500000,250000,500.0
+0.0,Clothing,South,1800000,180000,600.0
+0.0,Electronics,East,3000000,300000,450.0
+0.0,Furniture,West,1200000,120000,200.0
+0.0,Clothing,North,2000000,200000,550.0
+0.0,Electronics,South,2800000,280000,480.0
+0.0,Furniture,East,1500000,150000,250.0
+0.0,Clothing,West,1700000,170000,520.0
+0.0,Electronics,North,3200000,320000,510.0
+0.0,Furniture,South,1400000,140000,220.0

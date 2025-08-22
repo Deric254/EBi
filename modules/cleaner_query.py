@@ -1,9 +1,16 @@
+"""
+Core Module: Data Cleaner & Query
+This module is the heart of the system for cleaning, querying, and managing tables.
+"""
+__all__ = ["show"]
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 from utils import navigate_to
 
 def show(conn):
+    st.info("Cleaner & Query module activated. (Core system module)")
     cursor = conn.cursor()
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
     tables = [row[0] for row in cursor.fetchall()]
@@ -65,53 +72,65 @@ def show(conn):
             st.markdown("<span style='color:black'>NULLs per column</span>", unsafe_allow_html=True)
             st.write(nulls)
             st.markdown("<span style='color:black'>Blank strings per column</span>", unsafe_allow_html=True)
-            st.write(blanks)
             st.markdown(f"<span style='color:black'>Duplicate rows: {duplicates}</span>", unsafe_allow_html=True)
 
-        # Cleaning checkboxes and logic
-        checkbox_states = {}
-        for label, key in [
-            ("Drop rows with NULLs", "drop_nulls"),
-            ("Drop rows with blank strings", "drop_blanks"),
-            ("Drop duplicate rows", "drop_duplicates"),
-            ("Normalize text columns to Title Case", "normalize_case"),
-            ("Suggest column types", "suggest_types"),
-            ("Detect numeric outliers", "detect_outliers")
-        ]:
-            col1, col2 = st.columns([1, 8])
+        # --- Cleaning Options ---
+        st.markdown("#### Clean Your Data")
+        col1, col2 = st.columns([1, 8])
+        with col1:
+            drop_nulls = st.checkbox("", value=True, key="drop_nulls")
+        with col2:
+            st.markdown("<span style='color:black'>Drop rows with NULLs</span>", unsafe_allow_html=True)
+        col1, col2 = st.columns([1, 8])
+        with col1:
+            drop_blanks = st.checkbox("", value=True, key="drop_blanks")
+        with col2:
+            st.markdown("<span style='color:black'>Drop rows with blank strings</span>", unsafe_allow_html=True)
+        col1, col2 = st.columns([1, 8])
+        with col1:
+            drop_duplicates = st.checkbox("", value=True, key="drop_duplicates")
+        with col2:
+            st.markdown("<span style='color:black'>Drop duplicate rows</span>", unsafe_allow_html=True)
+        col1, col2 = st.columns([1, 8])
+        with col1:
+            normalize_case = st.checkbox("", value=True, key="normalize_case")
+        with col2:
+            st.markdown("<span style='color:black'>Normalize text columns to Title Case</span>", unsafe_allow_html=True)
+
+        # --- Change Column Datatypes ---
+        with st.expander("🔧 Change Column Datatypes", expanded=False):
+            st.markdown("Change the datatype of columns if needed (e.g., to numeric, string, datetime).")
+            dtype_map = {
+                "String": "object",
+                "Numeric": "float",
+                "Integer": "int",
+                "Datetime": "datetime64[ns]"
+            }
+            col1, col2 = st.columns([2, 2])
             with col1:
-                checked = st.checkbox("", value=True, key=key)
+                dtype_col = st.selectbox("Column", df.columns, key="dtype_col")
             with col2:
-                st.markdown(f"<span style='color:black'>{label}</span>", unsafe_allow_html=True)
-            checkbox_states[key] = checked
+                dtype_type = st.selectbox("New datatype", list(dtype_map.keys()), key="dtype_type")
+            if st.button("Apply Datatype Change", key="apply_dtype_change"):
+                try:
+                    if dtype_map[dtype_type] == "datetime64[ns]":
+                        df[dtype_col] = pd.to_datetime(df[dtype_col], errors="coerce")
+                    else:
+                        df[dtype_col] = df[dtype_col].astype(dtype_map[dtype_type], errors="ignore")
+                    st.success(f"Changed `{dtype_col}` to {dtype_type}")
+                except Exception as e:
+                    st.error(f"Datatype change error: {e}")
 
         cleaned_df = df.copy()
-
-        if checkbox_states["drop_duplicates"]:
+        if drop_duplicates:
             cleaned_df = cleaned_df.drop_duplicates()
-
-        if checkbox_states["drop_blanks"]:
+        if drop_blanks:
             cleaned_df.replace('', np.nan, inplace=True)
-
-        if checkbox_states["drop_nulls"]:
+        if drop_nulls:
             cleaned_df.dropna(inplace=True)
-
-        if checkbox_states["normalize_case"]:
+        if normalize_case:
             for col in cleaned_df.select_dtypes(include='object').columns:
                 cleaned_df[col] = cleaned_df[col].astype(str).str.title()
-
-        if checkbox_states["suggest_types"]:
-            with st.expander("📊 Suggested Column Types"):
-                st.write(cleaned_df.dtypes)
-
-        if checkbox_states["detect_outliers"]:
-            with st.expander("📈 Outlier Detection"):
-                for col in cleaned_df.select_dtypes(include=np.number).columns:
-                    q1 = cleaned_df[col].quantile(0.25)
-                    q3 = cleaned_df[col].quantile(0.75)
-                    iqr = q3 - q1
-                    outliers = cleaned_df[(cleaned_df[col] < q1 - 1.5 * iqr) | (cleaned_df[col] > q3 + 1.5 * iqr)]
-                    st.write(f"Outliers in `{col}`:", outliers[[col]])
 
         cleaned_df.columns = [c.strip().lower().replace(' ', '_') for c in cleaned_df.columns]
 
@@ -128,7 +147,7 @@ def show(conn):
         st.success(f"Cleaned CSV saved to My Projects.")
 
         # --- Data Modification Section ---
-        with st.expander("✏️ Update Values", expanded=False):
+        with st.expander("Update Values", expanded=False):
             st.markdown("Update values in a column for matching rows.")
             col1, col2 = st.columns([2, 2])
             with col1:
@@ -144,7 +163,7 @@ def show(conn):
                 except Exception as e:
                     st.error(f"Update error: {e}")
 
-        with st.expander("🗑️ Delete Rows", expanded=False):
+        with st.expander("Delete Rows", expanded=False):
             st.markdown("Delete rows where a column matches a value.")
             col1, col2 = st.columns([2, 2])
             with col1:
@@ -159,38 +178,7 @@ def show(conn):
                 except Exception as e:
                     st.error(f"Delete error: {e}")
 
-        with st.expander("🔤 Rename Table", expanded=False):
-            st.markdown("Rename your table to a new name.")
-            col1, col2 = st.columns([2, 2])
-            with col1:
-                new_table_name = st.text_input("New table name", value=table, key="cleaner_rename_table")
-            with col2:
-                st.markdown("Tip: Use a descriptive name for your table.")
-            if st.button("Run RENAME", key="cleaner_run_rename"):
-                try:
-                    cursor.execute(f"ALTER TABLE '{table}' RENAME TO '{new_table_name}'")
-                    conn.commit()
-                    st.success(f"Table renamed to '{new_table_name}'")
-                    st.session_state["selected_table"] = new_table_name
-                except Exception as e:
-                    st.error(f"Rename error: {e}")
-
-        # Collapsed manual SQL query area
-        with st.expander("🧠 Run Manual SQL Query"):
-            query = st.text_area("Enter SQL query", value="", placeholder="Type your SQL query here...")
-            if st.button("Run Query"):
-                try:
-                    cursor.execute(query)
-                    if cursor.description:
-                        result = cursor.fetchall()
-                        columns = [desc[0] for desc in cursor.description]
-                        st.dataframe(pd.DataFrame(result, columns=columns))
-                    else:
-                        conn.commit()
-                        st.success("Query executed successfully.")
-                except Exception as e:
-                    st.error(f"Query error: {e}")
-
+        # Navigation buttons (side panel logic remains)
         col_back, col_next = st.columns([1, 1], gap="small")
         with col_back:
             if st.button("← Back"):

@@ -14,11 +14,5 @@ def show():
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.success("Session reset. Please reload or start from Welcome.")
-            navigate_to("Welcome")
 
     st.markdown("Visit [EXES Analytics](https://deric-exes-analytics.netlify.app) to explore more tools.")
-      #  navigate_to("Generate Data")
-   # if st.button("Welcome →"):
-     #   navigate_to("Welcome")
-
-   # st.markdown("Visit [EXES Analytics](https://deric-exes-analytics.netlify.app) to explore more tools.")

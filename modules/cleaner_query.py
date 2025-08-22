@@ -25,16 +25,48 @@ def show(conn):
         duplicates = df.duplicated().sum()
 
         with st.expander("🧼 Cleaning Summary"):
-            st.write("NULLs per column", nulls)
-            st.write("Blank strings per column", blanks)
-            st.write(f"Duplicate rows: {duplicates}")
+            st.markdown("<span style='color:black'>NULLs per column</span>", unsafe_allow_html=True)
+            st.write(nulls)
+            st.markdown("<span style='color:black'>Blank strings per column</span>", unsafe_allow_html=True)
+            st.write(blanks)
+            st.markdown(f"<span style='color:black'>Duplicate rows: {duplicates}</span>", unsafe_allow_html=True)
 
-        drop_nulls = st.checkbox("Drop rows with NULLs")
-        drop_blanks = st.checkbox("Drop rows with blank strings")
-        drop_duplicates = st.checkbox("Drop duplicate rows")
-        normalize_case = st.checkbox("Normalize text columns to Title Case")
-        suggest_types = st.checkbox("Suggest column types")
-        detect_outliers = st.checkbox("Detect numeric outliers")
+        # Checkboxes and labels in the same line
+        col1, col2 = st.columns([1, 8])
+        with col1:
+            drop_nulls = st.checkbox("", value=True, key="drop_nulls")
+        with col2:
+            st.markdown("<span style='color:black'>Drop rows with NULLs</span>", unsafe_allow_html=True)
+
+        col1, col2 = st.columns([1, 8])
+        with col1:
+            drop_blanks = st.checkbox("", value=True, key="drop_blanks")
+        with col2:
+            st.markdown("<span style='color:black'>Drop rows with blank strings</span>", unsafe_allow_html=True)
+
+        col1, col2 = st.columns([1, 8])
+        with col1:
+            drop_duplicates = st.checkbox("", value=True, key="drop_duplicates")
+        with col2:
+            st.markdown("<span style='color:black'>Drop duplicate rows</span>", unsafe_allow_html=True)
+
+        col1, col2 = st.columns([1, 8])
+        with col1:
+            normalize_case = st.checkbox("", value=True, key="normalize_case")
+        with col2:
+            st.markdown("<span style='color:black'>Normalize text columns to Title Case</span>", unsafe_allow_html=True)
+
+        col1, col2 = st.columns([1, 8])
+        with col1:
+            suggest_types = st.checkbox("", value=True, key="suggest_types")
+        with col2:
+            st.markdown("<span style='color:black'>Suggest column types</span>", unsafe_allow_html=True)
+
+        col1, col2 = st.columns([1, 8])
+        with col1:
+            detect_outliers = st.checkbox("", value=True, key="detect_outliers")
+        with col2:
+            st.markdown("<span style='color:black'>Detect numeric outliers</span>", unsafe_allow_html=True)
 
         cleaned_df = df.copy()
 
@@ -95,5 +127,4 @@ def show(conn):
 
     except Exception as e:
         st.error(f"Error loading or cleaning data: {e}")
-    except Exception as e:
         st.error(f"Error loading or cleaning data: {e}")

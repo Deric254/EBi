@@ -251,7 +251,19 @@ selected = st.sidebar.radio("📂 Modules", [
           "Reset", "Insert CSV", "Generate Data"].index(st.session_state["page"]))
 
 if selected != st.session_state["page"]:
-    navigate_to(selected)
+    st.session_state["page"] = selected
+
+# Ensure a table is selected if required and none is set
+def ensure_table_selected(conn):
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+    tables = [row[0] for row in cursor.fetchall()]
+    if tables and "selected_table" not in st.session_state:
+        st.session_state["selected_table"] = tables[0]
+
+page = st.session_state["page"]
+if page in ["Preview & Audit", "Cleaner & Query", "Analyst"]:
+    ensure_table_selected(conn)
 
 # Header
 col1, col2 = st.columns([1, 5])

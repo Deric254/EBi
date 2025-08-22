@@ -62,7 +62,20 @@ def show(conn):
         cols = [desc[0] for desc in cursor.description]
         df = pd.DataFrame(rows, columns=cols)
 
-        st.write("🔍 Raw Data Snapshot", df.head())
+        # Function to format large numbers with K/M notation
+        def format_large_numbers(val):
+            if isinstance(val, (int, float)):
+                if pd.isna(val):
+                    return ""
+                if abs(val) >= 1_000_000:
+                    return f"{val/1_000_000:.1f}M"
+                if abs(val) >= 1_000:
+                    return f"{val/1_000:.1f}K"
+            return val
+
+        # Display a formatted preview of data
+        st.write("🔍 Raw Data Snapshot")
+        st.dataframe(df.head().applymap(lambda x: format_large_numbers(x) if isinstance(x, (int, float)) else x))
 
         nulls = df.isnull().sum()
         blanks = (df == '').sum()
@@ -74,6 +87,43 @@ def show(conn):
             st.markdown("<span style='color:black'>Blank strings per column</span>", unsafe_allow_html=True)
             st.markdown(f"<span style='color:black'>Duplicate rows: {duplicates}</span>", unsafe_allow_html=True)
 
+        # --- Intelligent Data Type Detection ---
+        st.markdown("#### Data Type Detection")
+        detected_types = {}
+        for col in df.columns:
+            # Check for numeric type
+            numeric_percent = pd.to_numeric(df[col], errors='coerce').notna().mean() * 100
+            
+            # Check for datetime type
+            datetime_percent = pd.to_datetime(df[col], errors='coerce').notna().mean() * 100
+            
+            # Check for boolean type
+            bool_values = {'true', 'false', 'yes', 'no', 't', 'f', 'y', 'n', '1', '0', 'True', 'False'}
+            bool_percent = df[col].astype(str).str.lower().isin(bool_values).mean() * 100
+            
+            # Determine most likely type
+            if numeric_percent > 80:
+                detected_types[col] = "Numeric"
+            elif datetime_percent > 80:
+                detected_types[col] = "Datetime" 
+            elif bool_percent > 80:
+                detected_types[col] = "Boolean"
+            else:
+                detected_types[col] = "Text"
+                
+        # Display detected types in a nice format
+        st.markdown("<span style='color:black'>Detected column types:</span>", unsafe_allow_html=True)
+        type_cols = st.columns(3)
+        for i, (col, dtype) in enumerate(detected_types.items()):
+            with type_cols[i % 3]:
+                icon = {
+                    "Numeric": "🔢", 
+                    "Datetime": "📅",
+                    "Boolean": "✓✗",
+                    "Text": "📝"
+                }.get(dtype, "📄")
+                st.markdown(f"<span style='color:black'>{icon} {col}: <b>{dtype}</b></span>", unsafe_allow_html=True)
+        
         # --- Cleaning Options ---
         st.markdown("#### Clean Your Data")
         col1, col2 = st.columns([1, 8])
@@ -96,25 +146,37 @@ def show(conn):
             normalize_case = st.checkbox("", value=True, key="normalize_case")
         with col2:
             st.markdown("<span style='color:black'>Normalize text columns to Title Case</span>", unsafe_allow_html=True)
+        col1, col2 = st.columns([1, 8])
+        with col1:
+            auto_convert_types = st.checkbox("", value=True, key="auto_convert_types")
+        with col2:
+            st.markdown("<span style='color:black'>Apply detected data types automatically</span>", unsafe_allow_html=True)
 
         # --- Change Column Datatypes ---
         with st.expander("🔧 Change Column Datatypes", expanded=False):
-            st.markdown("Change the datatype of columns if needed (e.g., to numeric, string, datetime).")
+            st.markdown("<span style='color:black'>Change the datatype of columns if needed (e.g., to numeric, string, datetime)</span>", unsafe_allow_html=True)
             dtype_map = {
                 "String": "object",
                 "Numeric": "float",
                 "Integer": "int",
-                "Datetime": "datetime64[ns]"
+                "Datetime": "datetime64[ns]",
+                "Boolean": "bool"
             }
             col1, col2 = st.columns([2, 2])
             with col1:
                 dtype_col = st.selectbox("Column", df.columns, key="dtype_col")
             with col2:
-                dtype_type = st.selectbox("New datatype", list(dtype_map.keys()), key="dtype_type")
+                dtype_type = st.selectbox("New datatype", list(dtype_map.keys()), key="dtype_type", 
+                                        index=list(dtype_map.keys()).index("String" if detected_types.get(dtype_col, "Text") == "Text" else "Numeric"))
             if st.button("Apply Datatype Change", key="apply_dtype_change"):
                 try:
                     if dtype_map[dtype_type] == "datetime64[ns]":
                         df[dtype_col] = pd.to_datetime(df[dtype_col], errors="coerce")
+                    elif dtype_map[dtype_type] == "bool":
+                        df[dtype_col] = df[dtype_col].astype(str).str.lower().map({"true": True, "false": False, 
+                                                                                "yes": True, "no": False, 
+                                                                                "y": True, "n": False, 
+                                                                                "1": True, "0": False})
                     else:
                         df[dtype_col] = df[dtype_col].astype(dtype_map[dtype_type], errors="ignore")
                     st.success(f"Changed `{dtype_col}` to {dtype_type}")
@@ -131,10 +193,27 @@ def show(conn):
         if normalize_case:
             for col in cleaned_df.select_dtypes(include='object').columns:
                 cleaned_df[col] = cleaned_df[col].astype(str).str.title()
+        if auto_convert_types:
+            for col, dtype in detected_types.items():
+                try:
+                    if dtype == "Numeric":
+                        cleaned_df[col] = pd.to_numeric(cleaned_df[col], errors='coerce')
+                    elif dtype == "Datetime":
+                        cleaned_df[col] = pd.to_datetime(cleaned_df[col], errors='coerce')
+                    elif dtype == "Boolean":
+                        cleaned_df[col] = cleaned_df[col].astype(str).str.lower().map({"true": True, "false": False, 
+                                                                                     "yes": True, "no": False, 
+                                                                                     "y": True, "n": False, 
+                                                                                     "1": True, "0": False})
+                except:
+                    # If conversion fails, keep as is
+                    pass
 
         cleaned_df.columns = [c.strip().lower().replace(' ', '_') for c in cleaned_df.columns]
 
-        st.write("✅ Cleaned Preview", cleaned_df.head())
+        # Display cleaned data with formatted numbers
+        st.write("✅ Cleaned Preview")
+        st.dataframe(cleaned_df.head().applymap(lambda x: format_large_numbers(x) if isinstance(x, (int, float)) else x))
         st.download_button("📥 Export Cleaned CSV", cleaned_df.to_csv(index=False), f"{table}_cleaned.csv", "text/csv")
         # Save cleaned CSV to my_projects/files
         import os

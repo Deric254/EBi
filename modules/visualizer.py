@@ -135,10 +135,19 @@ def show(df, title="📊 Visualize Data", key=None):
             bins = pd.cut(df[x_col], bins=num_bins)
             df_binned = df.copy()
             df_binned[x_col] = bins
-            grouped_data = df_binned.groupby(x_col)[y_col].agg(['mean', 'count']).reset_index()
-            grouped_data[x_col] = grouped_data[x_col].astype(str).apply(
-                lambda x: x.replace('(', '').replace(']', '').replace(', ', '-')
-            )
+            grouped_data = df_binned.groupby(x_col, observed=True)[y_col].agg(['mean', 'count']).reset_index()
+            # Format bin labels nicely
+            def clean_bin_label(x):
+                x_str = str(x).replace('(', '').replace(']', '').replace(', ', '-')
+                parts = x_str.split('-')
+                if all(p.strip().replace('.', '', 1).isdigit() for p in parts):
+                    parts = [str(int(float(p))) for p in parts]
+                    x_str = '-'.join(parts)
+                return x_str
+            grouped_data[x_col] = grouped_data[x_col].apply(clean_bin_label)
+            # Sort by bin lower bound
+            grouped_data['sort_key'] = grouped_data[x_col].apply(lambda x: float(x.split('-')[0]) if '-' in x else float(x))
+            grouped_data = grouped_data.sort_values('sort_key').drop('sort_key', axis=1).reset_index(drop=True)
             x_data = grouped_data[x_col]
             y_data = grouped_data['mean']
             counts = grouped_data['count']
@@ -147,10 +156,19 @@ def show(df, title="📊 Visualize Data", key=None):
             bins = pd.qcut(df[x_col], q=num_bins, duplicates='drop')
             df_binned = df.copy()
             df_binned[x_col] = bins
-            grouped_data = df_binned.groupby(x_col)[y_col].agg(['mean', 'count']).reset_index()
-            grouped_data[x_col] = grouped_data[x_col].astype(str).apply(
-                lambda x: x.replace('(', '').replace(']', '').replace(', ', '-')
-            )
+            grouped_data = df_binned.groupby(x_col, observed=True)[y_col].agg(['mean', 'count']).reset_index()
+            # Format bin labels nicely
+            def clean_bin_label(x):
+                x_str = str(x).replace('(', '').replace(']', '').replace(', ', '-')
+                parts = x_str.split('-')
+                if all(p.strip().replace('.', '', 1).isdigit() for p in parts):
+                    parts = [str(int(float(p))) for p in parts]
+                    x_str = '-'.join(parts)
+                return x_str
+            grouped_data[x_col] = grouped_data[x_col].apply(clean_bin_label)
+            # Sort by bin lower bound
+            grouped_data['sort_key'] = grouped_data[x_col].apply(lambda x: float(x.split('-')[0]) if '-' in x else float(x))
+            grouped_data = grouped_data.sort_values('sort_key').drop('sort_key', axis=1).reset_index(drop=True)
             x_data = grouped_data[x_col]
             y_data = grouped_data['mean']
             counts = grouped_data['count']
@@ -160,23 +178,38 @@ def show(df, title="📊 Visualize Data", key=None):
             bins = pd.cut(df[x_col], bins=custom_bins)
             df_binned = df.copy()
             df_binned[x_col] = bins
-            grouped_data = df_binned.groupby(x_col)[y_col].agg(['mean', 'count']).reset_index()
-            grouped_data[x_col] = grouped_data[x_col].astype(str).apply(
-                lambda x: x.replace('(', '').replace(']', '').replace(', ', '-')
-            )
+            grouped_data = df_binned.groupby(x_col, observed=True)[y_col].agg(['mean', 'count']).reset_index()
+            # Format bin labels nicely
+            def clean_bin_label(x):
+                x_str = str(x).replace('(', '').replace(']', '').replace(', ', '-')
+                parts = x_str.split('-')
+                if all(p.strip().replace('.', '', 1).isdigit() for p in parts):
+                    parts = [str(int(float(p))) for p in parts]
+                    x_str = '-'.join(parts)
+                return x_str
+            grouped_data[x_col] = grouped_data[x_col].apply(clean_bin_label)
+            # Sort by bin lower bound
+            grouped_data['sort_key'] = grouped_data[x_col].apply(lambda x: float(x.split('-')[0]) if '-' in x else float(x))
+            grouped_data = grouped_data.sort_values('sort_key').drop('sort_key', axis=1).reset_index(drop=True)
             x_data = grouped_data[x_col]
             y_data = grouped_data['mean']
             counts = grouped_data['count']
             st.markdown(f"<span style='color:black;font-style:italic;'>Binned {len(df[x_col])} values using custom range into {len(grouped_data)} groups</span>", unsafe_allow_html=True)
     else:
-        x_data = intelligent_group(df[x_col])
+        if pd.api.types.is_numeric_dtype(df[x_col]) and len(df[x_col].unique()) > 5:
+            # For numeric without binning, still avoid "Other" by using all unique, but warn
+            x_data = df[x_col]
+            st.markdown("<span style='color:black;font-style:italic;'>Warning: Large number of unique numeric values without binning may lead to poor visualization. Consider enabling binning.</span>", unsafe_allow_html=True)
+        else:
+            x_data = intelligent_group(df[x_col])
         y_data = df[y_col]
     
     # Set consistent color scheme
-    if len(x_data.unique()) <= 10:
+    unique_x = x_data.unique() if enable_binning else x_data.unique()
+    if len(unique_x) <= 10:
         colors = plt.cm.tab10.colors 
     else:
-        colors = plt.cm.viridis(np.linspace(0.2, 0.8, len(x_data.unique())))
+        colors = plt.cm.viridis(np.linspace(0.2, 0.8, len(unique_x)))
 
     # Format axis labels
     x_label = x_axis_label if 'x_axis_label' in locals() else truncate_text(x_col, 1)
@@ -206,9 +239,8 @@ def show(df, title="📊 Visualize Data", key=None):
                             grouped = plot_df.set_index(x_col)[y_col]
                         else:
                             grouped = plot_df.groupby(x_col)[y_col].sum()
-                        
-                        if not (enable_binning and pd.api.types.is_numeric_dtype(df[x_col])) and len(grouped) > 8:
-                            grouped = grouped.nlargest(8)
+                            if not enable_binning and len(grouped) > 8:
+                                grouped = grouped.nlargest(8)
                         
                         x_labels = [truncate_text(idx, 1) for idx in grouped.index]
                         if enable_binning and pd.api.types.is_numeric_dtype(df[x_col]) and 'count' in plot_df.columns:
@@ -222,7 +254,7 @@ def show(df, title="📊 Visualize Data", key=None):
                             ax.annotate(format_number(height), 
                                       xy=(bar.get_x() + bar.get_width() / 2, height),
                                       xytext=(0, 3), textcoords="offset points", 
-                                      ha='center', va='bottom', fontsize=8)
+                                      ha='center', va='bottom', fontsize=7, color='black')
                         
                         if len(grouped) > 2:
                             z = np.polyfit(range(len(grouped)), grouped.values, 1)
@@ -247,7 +279,7 @@ def show(df, title="📊 Visualize Data", key=None):
                 elif chart_type == "Line":
                     fig, ax = plt.subplots(figsize=fig_size)
                     grouped = plot_df.groupby(x_col)[y_col].sum()
-                    if len(grouped) > 10:
+                    if not enable_binning and len(grouped) > 10:
                         grouped = grouped.nlargest(10)
                     x_labels = [truncate_text(idx, 1) for idx in grouped.index]
                     ax.plot(x_labels, grouped.values, marker='o', color=colors[0], 
@@ -256,7 +288,7 @@ def show(df, title="📊 Visualize Data", key=None):
                         ax.annotate(format_number(v), 
                                   xy=(i, v), xytext=(0, 5), 
                                   textcoords="offset points", 
-                                  ha='center', fontsize=8)
+                                  ha='center', fontsize=7, color='black')
                     if len(grouped) > 3:
                         window = min(3, len(grouped)-1)
                         rolling_mean = grouped.rolling(window=window, center=True).mean()
@@ -320,12 +352,9 @@ def show(df, title="📊 Visualize Data", key=None):
                         labels=labels, 
                         autopct=autopct_func if grouped[y_col].sum() > 0 else None,
                         colors=colors[:len(grouped)], 
-                        textprops={'fontsize': 8},
+                        textprops={'fontsize': 7, 'color': 'black'},
                         wedgeprops={'linewidth': 0.5, 'edgecolor': 'white'}
                     )
-                    for text in autotexts:
-                        text.set_color('white')
-                        text.set_fontweight('bold')
                     ax.set_title(chart_title, fontweight='bold', fontsize=10, pad=15)
                     plt.tight_layout()
                 
@@ -333,7 +362,7 @@ def show(df, title="📊 Visualize Data", key=None):
                 elif chart_type == "Area":
                     fig, ax = plt.subplots(figsize=fig_size)
                     grouped = plot_df.groupby(x_col)[y_col].sum()
-                    if len(grouped) > 10:
+                    if not enable_binning and len(grouped) > 10:
                         grouped = grouped.nlargest(10)
                     x_labels = [truncate_text(idx, 1) for idx in grouped.index]
                     ax.fill_between(x_labels, grouped.values, alpha=0.4, color=colors[0])
@@ -342,7 +371,7 @@ def show(df, title="📊 Visualize Data", key=None):
                         ax.annotate(format_number(v), 
                                   xy=(i, v), xytext=(0, 5), 
                                   textcoords="offset points", 
-                                  ha='center', fontsize=8)
+                                  ha='center', fontsize=7, color='black')
                     if len(grouped) > 2:
                         z = np.polyfit(range(len(grouped)), grouped.values, 1)
                         p = np.poly1d(z)
@@ -423,7 +452,7 @@ def show(df, title="📊 Visualize Data", key=None):
                         ax1.annotate(format_number(height), 
                                    xy=(bar.get_x() + bar.get_width() / 2, height),
                                    xytext=(0, 3), textcoords="offset points", 
-                                   ha='center', va='bottom', fontsize=7)
+                                   ha='center', va='bottom', fontsize=7, color='black')
                         ax2.annotate(f"{cumpercentage.iloc[i]:.1f}%", 
                                    xy=(i, cumpercentage.iloc[i]),
                                    xytext=(0, 5), textcoords="offset points", 
@@ -460,8 +489,13 @@ def show(df, title="📊 Visualize Data", key=None):
                                             chart_pairs.append((cat_col, num_col))
                                 
                                 for i, (x, y) in enumerate(chart_pairs[:max_charts]):
-                                    # Improved title with full column names
-                                    chart_title = f"Distribution of {y} by {x}"
+                                    # Title input for each chart
+                                    default_title = f"Distribution of {y} by {x}"
+                                    chart_title = st.text_input(
+                                        f"Chart Title {i+1}", 
+                                        value=default_title, 
+                                        key=f"multi_chart_title_{i}_{key}"
+                                    )
                                     st.markdown(f"##### {chart_title}")
                                     x_data = intelligent_group(df[x])
                                     y_data = df[y]
@@ -483,12 +517,9 @@ def show(df, title="📊 Visualize Data", key=None):
                                                     labels=x_labels,
                                                     autopct=autopct_func,
                                                     colors=colors[:len(grouped)],
-                                                    textprops={'fontsize': 8},
+                                                    textprops={'fontsize': 7, 'color': 'black'},
                                                     wedgeprops={'linewidth': 0.5, 'edgecolor': 'white'}
                                                 )
-                                                for text in autotexts:
-                                                    text.set_color('white')
-                                                    text.set_fontweight('bold')
                                                 ax.set_title(chart_title, fontweight='bold', fontsize=10, pad=15)
                                             elif pd.api.types.is_numeric_dtype(df[x]) and pd.api.types.is_numeric_dtype(df[y]):
                                                 # Scatter for numeric-numeric
@@ -515,7 +546,7 @@ def show(df, title="📊 Visualize Data", key=None):
                                                     ax.annotate(format_number(height), 
                                                               xy=(bar.get_x() + bar.get_width() / 2, height),
                                                               xytext=(0, 3), textcoords="offset points", 
-                                                              ha='center', va='bottom', fontsize=7)
+                                                              ha='center', va='bottom', fontsize=7, color='black')
                                                 ax.set_ylabel(truncate_text(y, 1), fontsize=9)
                                                 ax.set_xlabel(truncate_text(x, 1), fontsize=9)
                                                 plt.xticks(rotation=45, ha='right', fontsize=8)
@@ -527,16 +558,36 @@ def show(df, title="📊 Visualize Data", key=None):
                                                 ax.spines['right'].set_visible(False)
                                             plt.tight_layout()
                                             st.pyplot(fig)
+                                            
+                                            # Quick Insights for each chart
+                                            insights_col1, insights_col2 = st.columns([1, 1])
+                                            with insights_col1:
+                                                st.markdown("<span style='color:black;font-weight:bold;padding:4px 8px;border-radius:4px;'>Quick Insights:</span>", unsafe_allow_html=True)
+                                                if pd.api.types.is_numeric_dtype(y_data):
+                                                    metrics = {
+                                                        "Average": format_number(y_data.mean()),
+                                                        "Max": format_number(y_data.max()),
+                                                        "Min": format_number(y_data.min())
+                                                    }
+                                                    metrics_cols = st.columns(3)
+                                                    for j, (label, value) in enumerate(metrics.items()):
+                                                        with metrics_cols[j]:
+                                                            st.markdown(f"<span style='color:black;font-size:12px;'>{label}: {value}</span>", unsafe_allow_html=True)
+                                            with insights_col2:
+                                                st.markdown(f"<span style='color:black;font-weight:bold;padding:4px 8px;border-radius:4px;'>Top {x} values:</span>", unsafe_allow_html=True)
+                                                top_values = x_data.value_counts().head(3)
+                                                for val, count in top_values.items():
+                                                    st.markdown(f"<span style='color:black;font-size:12px;'><b>{truncate_text(val)}:</b> {format_number(count)}</span>", unsafe_allow_html=True)
                                     except Exception as e:
                                         st.markdown(f"<span style='color:#198754;font-size:12px;font-weight:bold;'>Could not generate chart for {y} by {x}: {str(e)}</span>", unsafe_allow_html=True)
         except Exception as e:
             st.markdown(f"<span style='color:#198754;font-size:14px;font-weight:bold;'>Cannot plot: {str(e)}</span>", unsafe_allow_html=True)
 
-    # Show quick insights in a compact form
+    # Show quick insights for main chart
     insights_col1, insights_col2 = st.columns([1, 1])
     
     with insights_col1:
-        st.markdown("<span style='color:black;font-weight:bold;'>Quick Insights:</span>", unsafe_allow_html=True)
+        st.markdown("<span style='color:black;font-weight:bold;padding:4px 8px;border-radius:4px;'>Quick Insights:</span>", unsafe_allow_html=True)
         if pd.api.types.is_numeric_dtype(y_data):
             metrics = {
                 "Average": format_number(y_data.mean()),
@@ -546,13 +597,13 @@ def show(df, title="📊 Visualize Data", key=None):
             metrics_cols = st.columns(3)
             for i, (label, value) in enumerate(metrics.items()):
                 with metrics_cols[i]:
-                    st.metric(f"{label}", value)
+                    st.markdown(f"<span style='color:black;font-size:12px;'>{label}: {value}</span>", unsafe_allow_html=True)
     
     with insights_col2:
-        st.markdown(f"<span style='color:black;font-weight:bold;'>Top {x_col} values:</span>", unsafe_allow_html=True)
+        st.markdown(f"<span style='color:black;font-weight:bold;padding:4px 8px;border-radius:4px;'>Top {x_col} values:</span>", unsafe_allow_html=True)
         top_values = x_data.value_counts().head(3)
         for i, (val, count) in enumerate(top_values.items()):
-            st.markdown(f"<span style='color:black;'><b>{truncate_text(val)}:</b> {format_number(count)}</span>", unsafe_allow_html=True)
+            st.markdown(f"<span style='color:black;font-size:12px;'><b>{truncate_text(val)}:</b> {format_number(count)}</span>", unsafe_allow_html=True)
     
     # Download option
     saved_path = None

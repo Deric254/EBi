@@ -10,7 +10,20 @@ import numpy as np
 from utils import navigate_to
 
 def show(conn):
-    st.info("Cleaner & Query module activated. (Core system module)")
+    # Make all Streamlit notifications (info/success/warning/error) bold green without changing logic
+    st.markdown(
+        """
+        <style>
+        div.stAlert p {
+            color: #198754 !important; /* bootstrap success green */
+            font-weight: 700 !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    #st.info("Cleaner & Query module activated. (Core system module)")
     cursor = conn.cursor()
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
     tables = [row[0] for row in cursor.fetchall()]
@@ -54,7 +67,8 @@ def show(conn):
                 cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
                 tables = [row[0] for row in cursor.fetchall()]
             except Exception as e:
-                st.markdown(f"<span style='color:#d90429;font-weight:bold;'>Rename error: {e}</span>", unsafe_allow_html=True)
+                # Make inline rename error bold green to match notifications
+                st.markdown(f"<span style='color:#198754;font-weight:bold;'>Rename error: {e}</span>", unsafe_allow_html=True)
 
     try:
         cursor.execute(f"SELECT * FROM '{table}' LIMIT 1000")
@@ -151,6 +165,12 @@ def show(conn):
             auto_convert_types = st.checkbox("", value=True, key="auto_convert_types")
         with col2:
             st.markdown("<span style='color:black'>Apply detected data types automatically</span>", unsafe_allow_html=True)
+        # New option: drop columns that are entirely NULL/blank (whitespace-aware)
+        col1, col2 = st.columns([1, 8])
+        with col1:
+            drop_empty_columns = st.checkbox("", value=False, key="drop_empty_columns")
+        with col2:
+            st.markdown("<span style='color:black'>Drop columns that are entirely NULL/blank</span>", unsafe_allow_html=True)
 
         # --- Change Column Datatypes ---
         with st.expander("🔧 Change Column Datatypes", expanded=False):
@@ -208,8 +228,86 @@ def show(conn):
                 except:
                     # If conversion fails, keep as is
                     pass
+        # Robustly drop empty columns (all NULL or blank/whitespace) if selected
+        if 'drop_empty_columns' in locals() and drop_empty_columns:
+            tmp = cleaned_df.copy()
+            obj_cols = tmp.select_dtypes(include='object').columns
+            if len(obj_cols) > 0:
+                # Treat pure whitespace as empty
+                tmp[obj_cols] = tmp[obj_cols].replace(r'^\s*$', np.nan, regex=True)
+            empty_cols = [c for c in tmp.columns if tmp[c].isna().all()]
+            if empty_cols:
+                cleaned_df.drop(columns=empty_cols, inplace=True)
+                st.success(f"Dropped empty columns: {', '.join(empty_cols)}")
+            else:
+                st.info("No empty columns to drop.")
+        # --- Column Rename/Edit Section ---
+        with st.expander("✏️ Rename or Edit Columns", expanded=False):
+            st.markdown("<span style='color:black'>Rename columns in the cleaned dataset</span>", unsafe_allow_html=True)
+            
+            col1, col2 = st.columns([2, 2])
+            with col1:
+                if cleaned_df.columns.size > 0:
+                    col_to_rename = st.selectbox("Select column to rename", cleaned_df.columns, key="col_rename_select")
+                else:
+                    st.warning("No columns available")
+                    col_to_rename = None
+            
+            with col2:
+                if col_to_rename:
+                    new_col_name = st.text_input("New column name", value=col_to_rename, key="new_col_name")
+                    
+                    if st.button("Rename Column", key="rename_col_btn"):
+                        if new_col_name and new_col_name != col_to_rename:
+                            try:
+                                # Create a mapping dictionary for column renames
+                                col_mapping = {col_to_rename: new_col_name}
+                                # Apply rename to the cleaned dataframe
+                                cleaned_df = cleaned_df.rename(columns=col_mapping)
+                                st.success(f"Column '{col_to_rename}' renamed to '{new_col_name}'")
+                            except Exception as e:
+                                st.error(f"Error renaming column: {e}")
+            
+            # Batch column renaming option with black text
+            st.markdown("<hr>")
+            st.markdown("<span style='color:black; font-weight:bold;'>Simple Column Name Formatting</span>", unsafe_allow_html=True)
+            st.markdown("<span style='color:black;'>Format all column names at once (easier than renaming each column)</span>", unsafe_allow_html=True)
+            
+            col1, col2, col3 = st.columns([2, 2, 2])
+            with col1:
+                st.markdown("<span style='color:black;'>Make lowercase:</span>", unsafe_allow_html=True)
+                make_lowercase = st.checkbox("", value=True, key="make_lowercase")
+            with col2:
+                st.markdown("<span style='color:black;'>Replace spaces:</span>", unsafe_allow_html=True)
+                replace_spaces = st.checkbox("", value=True, key="replace_spaces")
+            with col3:
+                if replace_spaces:
+                    st.markdown("<span style='color:black;'>Replace with:</span>", unsafe_allow_html=True)
+                    space_replacement = st.selectbox("", ["_", "-", ""], key="space_replacement")
+                else:
+                    space_replacement = "_"  # Default
+            
+            if st.button("Apply Formatting to All Columns", key="batch_rename_btn"):
+                old_names = cleaned_df.columns.tolist()
+                
+                # Create new column names based on selected options
+                new_names = old_names.copy()
+                if make_lowercase:
+                    new_names = [col.lower() for col in new_names]
+                if replace_spaces:
+                    new_names = [col.replace(" ", space_replacement) for col in new_names]
+                
+                # Apply the new column names if changes were made
+                rename_map = {old: new for old, new in zip(old_names, new_names) if old != new}
+                if rename_map:
+                    cleaned_df = cleaned_df.rename(columns=rename_map)
+                    renamed_cols = list(rename_map.keys())
+                    st.success(f"Renamed {len(renamed_cols)} columns")
+                else:
+                    st.info("No columns needed renaming")
 
-        cleaned_df.columns = [c.strip().lower().replace(' ', '_') for c in cleaned_df.columns]
+        # Comment out the auto-rename line since we now have user controls for it
+        # cleaned_df.columns = [c.strip().lower().replace(' ', '_') for c in cleaned_df.columns]
 
         # Display cleaned data with formatted numbers
         st.write("✅ Cleaned Preview")

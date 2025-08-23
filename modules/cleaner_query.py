@@ -241,6 +241,100 @@ def show(conn):
                 st.success(f"Dropped empty columns: {', '.join(empty_cols)}")
             else:
                 st.info("No empty columns to drop.")
+        # --- Column/Row Selection Section ---
+        with st.expander("🗑️ Drop Columns or Filter Rows", expanded=False):
+            st.markdown("<span style='color:black;font-weight:bold;'>Remove specific columns or rows from dataset</span>", unsafe_allow_html=True)
+            
+            # Column dropping section
+            st.markdown("<span style='color:black;'>Select columns to remove:</span>", unsafe_allow_html=True)
+            columns_to_drop = st.multiselect("Columns to drop", cleaned_df.columns, key="cols_to_drop")
+            
+            if columns_to_drop:
+                col1, col2 = st.columns([1, 1])
+                with col1:
+                    if st.button("Drop Selected Columns", key="drop_cols_btn"):
+                        try:
+                            # Keep track of original shape
+                            orig_cols = cleaned_df.shape[1]
+                            
+                            # Create a new DataFrame excluding the selected columns
+                            # This ensures we're creating a new DataFrame, not a view
+                            remaining_columns = [col for col in cleaned_df.columns if col not in columns_to_drop]
+                            cleaned_df = cleaned_df[remaining_columns].copy()
+                            
+                            dropped_count = orig_cols - cleaned_df.shape[1]
+                            st.success(f"Dropped {dropped_count} columns: {', '.join(columns_to_drop)}")
+                        except Exception as e:
+                            st.error(f"Error dropping columns: {e}")
+            
+            # Use a Streamlit divider instead of HTML hr tag
+            st.markdown("---")
+            
+            # Row filtering section
+            st.markdown("<span style='color:black;font-weight:bold;'>Filter rows by condition:</span>", unsafe_allow_html=True)
+            
+            filter_col1, filter_col2, filter_col3 = st.columns([1.5, 1, 1.5])
+            with filter_col1:
+                filter_column = st.selectbox("Select column", cleaned_df.columns, key="filter_column")
+            
+            with filter_col2:
+                operators = ["equals", "not equals", "greater than", "less than", "contains", "starts with", "ends with", "is null", "is not null"]
+                filter_operator = st.selectbox("Condition", operators, key="filter_operator")
+            
+            with filter_col3:
+                # Only show value input for operators that need it
+                if filter_operator not in ["is null", "is not null"]:
+                    # Use the appropriate input type based on column data type
+                    col_dtype = str(cleaned_df[filter_column].dtype)
+                    if "int" in col_dtype or "float" in col_dtype:
+                        try:
+                            filter_value = st.number_input("Value", value=0, key="filter_value")
+                        except:
+                            filter_value = st.text_input("Value", key="filter_value")
+                    elif "datetime" in col_dtype:
+                        filter_value = st.date_input("Value", key="filter_value")
+                    else:
+                        filter_value = st.text_input("Value", key="filter_value")
+            
+            if st.button("Apply Filter", key="apply_filter_btn"):
+                try:
+                    orig_rows = len(cleaned_df)
+                    
+                    # Create filter based on selected operator
+                    if filter_operator == "equals":
+                        mask = cleaned_df[filter_column] == filter_value
+                    elif filter_operator == "not equals":
+                        mask = cleaned_df[filter_column] != filter_value
+                    elif filter_operator == "greater than":
+                        mask = cleaned_df[filter_column] > filter_value
+                    elif filter_operator == "less than":
+                        mask = cleaned_df[filter_column] < filter_value
+                    elif filter_operator == "contains":
+                        mask = cleaned_df[filter_column].astype(str).str.contains(str(filter_value), na=False)
+                    elif filter_operator == "starts with":
+                        mask = cleaned_df[filter_column].astype(str).str.startswith(str(filter_value), na=False)
+                    elif filter_operator == "ends with":
+                        mask = cleaned_df[filter_column].astype(str).str.endswith(str(filter_value), na=False)
+                    elif filter_operator == "is null":
+                        mask = cleaned_df[filter_column].isna()
+                    elif filter_operator == "is not null":
+                        mask = ~cleaned_df[filter_column].isna()
+                    
+                    # Apply the filter
+                    cleaned_df = cleaned_df[mask]
+                    
+                    # Show results
+                    filtered_rows = len(cleaned_df)
+                    removed_rows = orig_rows - filtered_rows
+                    st.success(f"Filter applied: Kept {filtered_rows} rows, removed {removed_rows} rows")
+                except Exception as e:
+                    st.error(f"Error applying filter: {e}")
+            
+            # Option to reset all filters
+            if st.button("Reset to Original Data", key="reset_filters"):
+                cleaned_df = df.copy()
+                st.success("Reset to original data. All filters and transformations cleared.")
+
         # --- Column Rename/Edit Section ---
         with st.expander("✏️ Rename or Edit Columns", expanded=False):
             st.markdown("<span style='color:black'>Rename columns in the cleaned dataset</span>", unsafe_allow_html=True)
@@ -269,7 +363,7 @@ def show(conn):
                                 st.error(f"Error renaming column: {e}")
             
             # Batch column renaming option with black text
-            st.markdown("<hr>")
+            st.markdown("---")
             st.markdown("<span style='color:black; font-weight:bold;'>Simple Column Name Formatting</span>", unsafe_allow_html=True)
             st.markdown("<span style='color:black;'>Format all column names at once (easier than renaming each column)</span>", unsafe_allow_html=True)
             
@@ -311,8 +405,19 @@ def show(conn):
 
         # Display cleaned data with formatted numbers
         st.write("✅ Cleaned Preview")
+        
+        # Show row and column counts to verify changes
+        st.markdown(f"<span style='color:black;font-weight:bold;'>Cleaned data has {cleaned_df.shape[1]} columns and {cleaned_df.shape[0]} rows</span>", unsafe_allow_html=True)
+        
+        # Add a debug option to show column names for verification
+        with st.expander("Column details", expanded=False):
+            st.markdown("<span style='color:black;'>Current columns in dataset:</span>", unsafe_allow_html=True)
+            for i, col in enumerate(cleaned_df.columns):
+                st.markdown(f"<span style='color:black;'>{i+1}. {col}</span>", unsafe_allow_html=True)
+        
         st.dataframe(cleaned_df.head().applymap(lambda x: format_large_numbers(x) if isinstance(x, (int, float)) else x))
         st.download_button("📥 Export Cleaned CSV", cleaned_df.to_csv(index=False), f"{table}_cleaned.csv", "text/csv")
+        
         # Save cleaned CSV to my_projects/files
         import os
         from datetime import datetime
@@ -323,6 +428,9 @@ def show(conn):
         cleaned_df.to_csv(cleaned_path, index=False)
         st.success(f"Cleaned CSV saved to My Projects.")
 
+        # Store the cleaned DataFrame in session state to make it available to other modules
+        st.session_state.cleaned_df = cleaned_df.copy()
+        
         # --- Data Modification Section ---
         with st.expander("Update Values", expanded=False):
             st.markdown("Update values in a column for matching rows.")
@@ -341,10 +449,10 @@ def show(conn):
                     st.error(f"Update error: {e}")
 
         with st.expander("Delete Rows", expanded=False):
-            st.markdown("Delete rows where a column matches a value.")
+            st.markdown("Delete rows in a column for matching values.")
             col1, col2 = st.columns([2, 2])
             with col1:
-                delete_col = st.selectbox("Column to match for delete", cleaned_df.columns, key="cleaner_delete_col")
+                delete_col = st.selectbox("Column to delete from", cleaned_df.columns, key="cleaner_delete_col")
             with col2:
                 delete_val = st.text_input("Value to delete (exact match)", key="cleaner_delete_val")
             if st.button("Run DELETE", key="cleaner_run_delete"):
@@ -362,6 +470,8 @@ def show(conn):
                 navigate_to("Preview & Audit")
         with col_next:
             if st.button("Next →"):
+                # Ensure the cleaned DataFrame is in session state before navigating
+                st.session_state.cleaned_df = cleaned_df.copy()
                 navigate_to("Analyst")
 
     except Exception as e:

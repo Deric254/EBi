@@ -4,6 +4,19 @@ from utils import navigate_to
 from modules import visualizer
 
 def show(conn):
+    # Make all Streamlit notifications bold green
+    st.markdown(
+        """
+        <style>
+        div.stAlert p {
+            color: #198754 !important; /* bootstrap success green */
+            font-weight: 700 !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
     st.subheader("🧠 Analyst Visualization")
 
     cursor = conn.cursor()
@@ -16,13 +29,20 @@ def show(conn):
     table = current_table
 
     if table:
-        cursor.execute(f"SELECT * FROM '{table}' LIMIT 1000")
-        rows = cursor.fetchall()
-        cols = [desc[0] for desc in cursor.description]
-        df = pd.DataFrame(rows, columns=cols)
+        # Check if we have a cleaned DataFrame in session state
+        if "cleaned_df" in st.session_state:
+            df = st.session_state.cleaned_df
+            st.success(f"Using cleaned dataset with {df.shape[1]} columns and {df.shape[0]} rows")
+        else:
+            # Fall back to loading from database if no cleaned DataFrame is available
+            cursor.execute(f"SELECT * FROM '{table}' LIMIT 1000")
+            rows = cursor.fetchall()
+            cols = [desc[0] for desc in cursor.description]
+            df = pd.DataFrame(rows, columns=cols)
+            st.info("Using original dataset (no cleaned version found)")
 
         st.markdown("### Select Columns to Visualize")
-        selected_cols = st.multiselect("Columns", cols, default=cols)
+        selected_cols = st.multiselect("Columns", df.columns.tolist(), default=df.columns.tolist())
         if not selected_cols:
             st.warning("Please select at least one column.")
             return
